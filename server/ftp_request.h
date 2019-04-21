@@ -1,0 +1,64 @@
+#ifndef __FTP_REQUEST_H__
+#define __FTP_REQUEST_H__
+
+#include "head.h"
+#include "util.h"
+
+#define BUFF_SIZE 1024
+
+#pragma pack(1)
+typedef struct pkg_head {
+	unsigned short body_len;   // 包体长度
+	unsigned short pkg_type;   // 报文类型
+}pkg_head_t;
+#pragma pack()
+
+enum state {
+	head_init,          // 初始状态，准备接收数据包头
+	head_recving,       // 结束包头中，包头不完整，继续接受中
+	body_init,          // 包头刚好收完，准备接收包体
+	body_recving        // 接收包体中，包体不完整，继续接收中，处理后直接回到head_init
+};
+
+enum type {
+	command_puts,
+	command_gets,
+	file_content,
+	end_file
+};
+
+typedef struct ftp_request {
+	int              epollfd;
+	int              fd;
+	unsigned short   type;
+	enum state       curstate;
+	unsigned short   handle_result;                          // 
+    char             head[sizeof(pkg_head_t)];               // 存放包头信息
+    char*            recv_pointer;         	 			     // 接收数据的缓冲区的头指针
+    unsigned int     need_recv_len;                          // 还要收到多少数据
+	char*            body_pointer;                           //
+	unsigned short   body_len;                               // 记录body的长度
+	int              filefd;                                 // 
+}ftp_request_t;
+
+void init_request_t(ftp_request_t* request, int fd, int epollfd);
+
+void request_controller(void*);
+
+void request_head_recv_finish(ftp_request_t* request);
+
+void request_body_recv_finish(ftp_request_t* request);
+
+void request_handler(ftp_request_t* request);
+
+int command_handle_puts(ftp_request_t* request);
+
+int command_handle_gets(ftp_request_t* request);
+
+int command_handle_file_content(ftp_request_t* request);
+
+int command_handle_end_file(ftp_request_t* request);
+
+void request_close_conn(ftp_request_t* request);
+
+#endif
