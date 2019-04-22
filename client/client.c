@@ -12,8 +12,8 @@ int main(int argc,char* argv[]){
 	int epollfd = epoll_create(1);
 	struct epoll_event event, evs[MAX_EVENT_NUMBER];
 
-	epoll_add(epollfd, sockfd, EPOLLIN);
-	epoll_add(epollfd, STDIN_FILENO, EPOLLIN);
+	ftp_epoll_add(epollfd, sockfd, EPOLLIN);
+	ftp_epoll_add(epollfd, STDIN_FILENO, EPOLLIN);
 
 	int result, i;
 	for (;;) {
@@ -22,11 +22,9 @@ int main(int argc,char* argv[]){
 			int fd = evs[i].data.fd;
 			// 两个监听是并行的
 			if (STDIN_FILENO == fd) {
-				//printf("This is stdinfd\n");
 				command_control(sockfd);
 			}
 			if (sockfd == fd) {
-				//printf("This is sockfd\n");
 				socket_control(sockfd);
 			}
 		}

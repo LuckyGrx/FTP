@@ -1,15 +1,16 @@
 #include "threadpool.h"
 
 void* threadpool_worker(void* p) {
-	threadpool_t* pool = (threadpool_t*)p;
+	ftp_threadpool_t* pool = (ftp_threadpool_t*)p;
 	while (1) {
 		threadpool_get(pool);
 	}
+	pthread_exit(NULL);
 }
 
-threadpool_t* threadpool_init(int threadnum){
-	threadpool_t* pool;
-	if ((pool = (threadpool_t*)calloc(1, sizeof(threadpool_t))) == NULL)
+ftp_threadpool_t* threadpool_init(int threadnum){
+	ftp_threadpool_t* pool;
+	if ((pool = (ftp_threadpool_t*)calloc(1, sizeof(ftp_threadpool_t))) == NULL)
 		goto err;
 	if ((pool->threads = (pthread_t*)calloc(threadnum, sizeof(pthread_t))) == NULL)
 		goto err;
@@ -38,7 +39,7 @@ err:
 }
 
 
-int threadpool_add(threadpool_t* pool, void (*func)(void*), void *arg) {
+int threadpool_add(ftp_threadpool_t* pool, void (*func)(void*), void *arg) {
 	if (NULL == pool)
 		return -1;
 	pthread_mutex_lock(&(pool->mutex));
@@ -57,7 +58,7 @@ int threadpool_add(threadpool_t* pool, void (*func)(void*), void *arg) {
 	return 0;
 }
 
-void threadpool_get(threadpool_t* pool) {
+void threadpool_get(ftp_threadpool_t* pool) {
 	if (NULL == pool)
 		return ;
 
@@ -66,11 +67,13 @@ void threadpool_get(threadpool_t* pool) {
 		pthread_cond_wait(&(pool->cond), &(pool->mutex));
 	task_t* task = pool->head->next;
 	--(pool->queuesize);
-    (*(task->func))(task->arg);
 	pthread_mutex_unlock(&(pool->mutex));
+
+    (*(task->func))(task->arg);
+	free(task);
 }
 
-int threadpool_free(threadpool_t* pool) {
+int threadpool_free(ftp_threadpool_t* pool) {
 	if (NULL == pool)
 		return -1;
 	if (pool->threads)
@@ -86,7 +89,7 @@ int threadpool_free(threadpool_t* pool) {
 	return 0;
 }
 
-int threadpool_destroy(threadpool_t* pool) {
+int threadpool_destroy(ftp_threadpool_t* pool) {
 	if (NULL == pool)
 		return -1;
 	int i;

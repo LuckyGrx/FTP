@@ -4,14 +4,28 @@
 #include "head.h"
 #include "util.h"
 
+#define ONE_BODY_MAX 1024
 #define BUFF_SIZE 1024
 
 #pragma pack(1)
-typedef struct pkg_head {
+typedef struct request_pkg_head {
 	unsigned short body_len;   // 包体长度
 	unsigned short pkg_type;   // 报文类型
-}pkg_head_t;
+}request_pkg_head_t;
 #pragma pack()
+
+#pragma pack(1)
+typedef struct response_pkg_head {
+	unsigned short body_len;           // 包体长度
+	unsigned short pkg_type;           // 报文类型
+	unsigned short handle_result;      // 结果类型
+}response_pkg_head_t;
+#pragma pack()
+
+enum response {
+	response_success,
+	response_failed
+};
 
 enum state {
 	head_init,          // 初始状态，准备接收数据包头
@@ -33,7 +47,7 @@ typedef struct ftp_request {
 	unsigned short   type;
 	enum state       curstate;
 	unsigned short   handle_result;                          // 
-    char             head[sizeof(pkg_head_t)];               // 存放包头信息
+    char             head[sizeof(request_pkg_head_t)];       // 存放包头信息
     char*            recv_pointer;         	 			     // 接收数据的缓冲区的头指针
     unsigned int     need_recv_len;                          // 还要收到多少数据
 	char*            body_pointer;                           //

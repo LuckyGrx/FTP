@@ -56,6 +56,7 @@ void tcp_accept(int epollfd, int listenfd) {
 
 		// 文件描述符可以读
 		ftp_epoll_add(epollfd, connfd, request, EPOLLIN | EPOLLET | EPOLLONESHOT); 
+		//ftp_epoll_add(epollfd, connfd, request, EPOLLIN | EPOLLET); 
 	}
 	if (-1 == connfd) {
 		if (errno != EAGAIN) {
@@ -99,7 +100,6 @@ int recvn(int sfd, char* buf, int len) {
 			if (errno == EAGAIN)
 				continue;
 			perror("recvn");
-			//printf("errno = %d\n", errno);
 			return -1;
 		}
 	}

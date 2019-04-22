@@ -105,7 +105,7 @@ int command_ctl_puts(int sockfd, int filefd) {
 	int one_send_size = 1024;
 	int remain = file_size;
 	int ret;
-	pkg_head_t pkg_head;
+	request_pkg_head_t pkg_head;
 	while (remain > 0) {
 		bzero(&pkg_head, sizeof(pkg_head));
 		pkg_head.pkg_type = htons(file_content);
@@ -141,6 +141,7 @@ int command_ctl_puts(int sockfd, int filefd) {
 		perror("munmap");
 		return ;
 	}
+
 	bzero(&pkg_head, sizeof(pkg_head));
 	pkg_head.pkg_type = htons(end_file);
 	// 发送包头
@@ -148,6 +149,8 @@ int command_ctl_puts(int sockfd, int filefd) {
 		close(sockfd);
 		return -1;
 	}
+
+	printf("1111\n");
 	/*
 	char buff[2];
 	int len, ret;
@@ -178,7 +181,7 @@ int command_ctl_puts(int sockfd, int filefd) {
 
 
 int command_control(int sockfd) {
-	pkg_head_t pkg_head;
+	request_pkg_head_t pkg_head;
 	bzero(&pkg_head, sizeof(pkg_head));
 
 	char linebuf[1024];
@@ -186,7 +189,7 @@ int command_control(int sockfd) {
 	read(STDIN_FILENO, linebuf, sizeof(linebuf));
 	int i;
 	int len = strlen(linebuf) - 1 ; //read包括‘\n'
-	char body[1024];
+	char body[ONE_BODY_MAX];
 	bzero(body, sizeof(body));
 	if (len >= 4 && !strncmp(linebuf, "puts", 4)) {
 		pkg_head.pkg_type = htons(command_puts);
@@ -240,21 +243,23 @@ int command_control(int sockfd) {
 
 int socket_control(int sockfd) {
 	//printf("socket_controller\n");
-	response_pkg_header_t response_pkg_header;
-	bzero(&response_pkg_header, sizeof(response_pkg_header));
+	response_pkg_head_t response_pkg_head;
+	bzero(&response_pkg_head, sizeof(response_pkg_head));
 
-	if (-1 == recvn(sockfd, (char*)&response_pkg_header, sizeof(response_pkg_header_t)))
+	if (-1 == recvn(sockfd, (char*)&response_pkg_head, sizeof(response_pkg_head_t)))
 		return ;
 
-	unsigned short command_type = ntohs(response_pkg_header.pkg_type);
-	unsigned short result = ntohs(response_pkg_header.pkg_result);
+	unsigned short command_type = ntohs(response_pkg_head.pkg_type);
+	unsigned short handle_result = ntohs(response_pkg_head.handle_result);
 
 	switch (command_type) {
 		case command_puts:
-			printf("puts\n");
+			if (handle_result == response_success)
+				printf("上传成功\n");
+			else if (handle_result == response_failed)
+				printf("上传失败\n");
 			break;
 		case command_gets:
-			printf("gets\n");
 			break;
 		default:
 			break;

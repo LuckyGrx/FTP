@@ -5,7 +5,7 @@ void init_request_t(ftp_request_t* request, int fd, int epollfd) {
 	request->fd = fd;
 	request->curstate = head_init;
 	request->recv_pointer = request->head;
-	request->need_recv_len = sizeof(pkg_head_t);
+	request->need_recv_len = sizeof(request_pkg_head_t);
 }
 
 void request_controller(void* ptr) {
@@ -22,7 +22,7 @@ void request_controller(void* ptr) {
 		
 		switch(request->curstate) {
 			case head_init:
-				if (reco == sizeof(pkg_head_t)) // 刚好收到完整包头，拆解包头
+				if (reco == sizeof(request_pkg_head_t)) // 刚好收到完整包头，拆解包头
 					request_head_recv_finish(request);
 				else {// 收到的包头不完整
 					request->curstate = head_recving;
@@ -41,7 +41,7 @@ void request_controller(void* ptr) {
 			case body_init:
 				if (request->need_recv_len == reco) // 包体收完整了
 					request_body_recv_finish(request);
-				else {// 收到的宽度小于要收的宽度
+				else {// 收到的包体不完整
 					request->curstate = body_recving;
 					request->recv_pointer = request->recv_pointer + reco;
 					request->need_recv_len = request->need_recv_len - reco;
@@ -50,7 +50,7 @@ void request_controller(void* ptr) {
 			case body_recving:
 				if (request->need_recv_len == reco) // 包体收完整了
 					request_body_recv_finish(request);
-				else {// 包体没收完整，继续收
+				else {// 收到的包体不完整
 					request->recv_pointer = request->recv_pointer + reco;
 					request->need_recv_len = request->need_recv_len - reco;
 				}
@@ -68,7 +68,6 @@ close:
 	request_close_conn(request);
 } 
 
-
 void request_close_conn(ftp_request_t* request) {
 	close(request->fd);
 	free(request->body_pointer);
@@ -77,21 +76,29 @@ void request_close_conn(ftp_request_t* request) {
 	request = NULL;
 }
 
-
 void request_head_recv_finish(ftp_request_t* request) {
-	unsigned short body_len = ntohs(((pkg_head_t*)request->head)->body_len);   // 
-	request->type = ntohs(((pkg_head_t*)request->head)->pkg_type);
-
+	unsigned short body_len = ntohs(((request_pkg_head_t*)request->head)->body_len);   // 
+	request->type = ntohs(((request_pkg_head_t*)request->head)->pkg_type);
 	printf("body_len = %u\n", body_len);
 
-	char* temp_buffer = (char*)calloc(body_len, sizeof(char));  // 分配内存 包体长度 
+	if (body_len > ONE_BODY_MAX) {
+		request->curstate = head_init;
+		request->body_pointer = NULL;
+		request->recv_pointer = request->head;
+		request->need_recv_len = sizeof(request_pkg_head_t);
+	} else {
+		if (0 == body_len)   // 包体为0时，直接处理
+			request_body_recv_finish(request);
+		else {
+			char* temp_buffer = (char*)calloc(body_len, sizeof(char));  // 分配内存 包体长度 
 
-	request->body_pointer = temp_buffer;
-	request->curstate = body_init;
-	request->recv_pointer = temp_buffer;
-	request->need_recv_len = body_len;
-
-	request->body_len = body_len;
+			request->body_pointer = temp_buffer;
+			request->curstate = body_init;
+			request->recv_pointer = temp_buffer;
+			request->need_recv_len = body_len;
+			request->body_len = body_len;
+		}
+	}
 }
 
 void request_body_recv_finish(ftp_request_t* request) {
@@ -100,7 +107,7 @@ void request_body_recv_finish(ftp_request_t* request) {
 	request->curstate = head_init;
 	request->body_pointer = NULL;
 	request->recv_pointer = request->head;
-	request->need_recv_len = sizeof(pkg_head_t);
+	request->need_recv_len = sizeof(request_pkg_head_t);
 }
 
 void request_handler(ftp_request_t* request) {
@@ -125,9 +132,13 @@ void request_handler(ftp_request_t* request) {
 }
 
 int command_handle_end_file(ftp_request_t* request) {
-	int connfd = request->fd;
-	char buf[20] = "I am here";
-	sendn(connfd, buf, strlen(buf));
+	response_pkg_head_t response_pkg_head;
+	bzero(&response_pkg_head, sizeof(response_pkg_head));
+	response_pkg_head.pkg_type = htons(command_puts);
+	response_pkg_head.handle_result = htons(response_success);
+
+	if (-1 == sendn(request->fd, (char*)&response_pkg_head, sizeof(response_pkg_head_t)))
+		return ;
 }
 
 int command_handle_file_content(ftp_request_t* request) {

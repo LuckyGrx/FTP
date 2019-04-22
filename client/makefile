@@ -12,4 +12,4 @@ epoll.o:epoll.c head.h
 	gcc -c epoll.c
 
 clean:
-	rm *.o client
+	rm *.o
