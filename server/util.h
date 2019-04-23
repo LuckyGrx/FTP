@@ -25,4 +25,8 @@ int recvn(int sfd, char* buf, int len);
 
 int read_conf(const char* filename, ftp_conf_t* conf);
 
+int get_file_size(int filefd);
+
+int sendfile_by_mmap(int sockfd, int filefd);
+
 #endif

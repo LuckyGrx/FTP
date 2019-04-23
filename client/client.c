@@ -15,18 +15,15 @@ int main(int argc,char* argv[]){
 	ftp_epoll_add(epollfd, sockfd, EPOLLIN);
 	ftp_epoll_add(epollfd, STDIN_FILENO, EPOLLIN);
 
-	int result, i;
+	int result;
 	for (;;) {
 		result = epoll_wait(epollfd, evs, MAX_EVENT_NUMBER, -1);
-		for(i = 0; i < result; ++i) {
+		for(int i = 0; i < result; ++i) {
 			int fd = evs[i].data.fd;
-			// 两个监听是并行的
-			if (STDIN_FILENO == fd) {
-				command_control(sockfd);
-			}
-			if (sockfd == fd) {
-				socket_control(sockfd);
-			}
+			if (STDIN_FILENO == fd)
+				request_control(sockfd);
+			if (sockfd == fd)
+				response_control(sockfd);
 		}
 	}
 	close(epollfd);

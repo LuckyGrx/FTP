@@ -75,13 +75,14 @@ int sendn(int sfd, char* buf, int len) {
 		ret = send(sfd, buf + total, len - total, 0);
 		if (ret > 0)
 			total = total + ret;
-		else if (0 == ret)
+		else if (0 == ret) {
+			close(sfd);
+			exit(1);
 			return 0;
+		}
 		else {
 			if (errno == EAGAIN)
 				continue;
-			perror("sendn");
-			return -1;
 		}
 	}
 	return total;
@@ -94,13 +95,13 @@ int recvn(int sfd, char* buf, int len) {
 		ret = recv(sfd, buf + total, len - total, 0);
 		if (ret > 0)
 			total = total + ret;
-		else if (ret == 0)
+		else if (ret == 0) {
+			close(sfd);
+			exit(1);
 			return 0;
-		else {
+		} else {
 			if (errno == EAGAIN)
 				continue;
-			perror("recvn");
-			return -1;
 		}
 	}
 	return total;
@@ -135,4 +136,53 @@ int read_conf(const char* filename, ftp_conf_t* conf) {
 	}
 	fclose(fp);
 	return FTP_CONF_OK;
+}
+
+int get_file_size(int filefd) {
+	struct stat statbuf;
+	fstat(filefd, &statbuf);
+	return statbuf.st_size;
+}
+
+int sendfile_by_mmap(int sockfd, int filefd) {  
+	printf("%s\n", __func__);
+
+	int file_size = get_file_size(filefd);
+	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
+	char* p = file_mmap;
+	int one_send_size = ONE_BODY_MAX;
+	int remain = file_size;
+	int ret;
+	response_pkg_head_t pkg_head;
+	while (remain > 0) {
+		bzero(&pkg_head, sizeof(pkg_head));
+		pkg_head.pkg_type = htons(file_content);
+		if (remain < one_send_size)
+			pkg_head.body_len = htons(remain);
+		else
+			pkg_head.body_len = htons(one_send_size);
+		
+		// 发送包头
+		sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
+		// 发送包体
+		if (remain < one_send_size)
+			sendn(sockfd, file_mmap, remain);
+		else
+			sendn(sockfd, file_mmap, one_send_size);
+		
+		file_mmap += one_send_size;
+		remain -= one_send_size;
+		printf("hhh\n");
+	}
+
+	ret = munmap(p, file_size);
+	if (-1 == ret) {
+		perror("munmap");
+		return -1;
+	}
+
+	bzero(&pkg_head, sizeof(pkg_head));
+	pkg_head.pkg_type = htons(end_file);
+	// 发送文件结束标志
+	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 }

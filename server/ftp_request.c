@@ -159,5 +159,16 @@ int command_handle_puts(ftp_request_t* request) {
 }
 
 int command_handle_gets(ftp_request_t* request) {
-
+	printf("%s\n", __func__);
+	printf("%s\n", request->body_pointer);
+	
+	int filefd;
+	if ((filefd = open(request->body_pointer, O_RDONLY)) == -1) {
+		response_pkg_head_t response_pkg_head;
+		bzero(&response_pkg_head, sizeof(response_pkg_head));
+		response_pkg_head.pkg_type = htons(command_gets);
+		response_pkg_head.handle_result = htons(response_failed);
+		return -1;
+	}
+	sendfile_by_mmap(request->fd, filefd);
 }

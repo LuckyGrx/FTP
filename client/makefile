@@ -1,15 +1,17 @@
 
+CC = gcc -std=gnu99
+
 client:client.o util.o epoll.o
-	gcc -o client *.o -lcrypt
+	$(CC) -w -o client *.o -lcrypt
 
 client.o:client.c 
-	gcc -c client.c
+	$(CC) -w -c client.c
 
 util.o:util.c util.h head.h
-	gcc -c util.c
+	$(CC) -w -c util.c
 
 epoll.o:epoll.c head.h
-	gcc -c epoll.c
+	$(CC) -w -c epoll.c
 
 clean:
 	rm *.o

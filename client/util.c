@@ -17,17 +17,6 @@ int tcp_connect(const char* ip, int port) {
 		close(sockfd);
 		exit(1);
 	}
-	
-	/*
-	int optval = 1;
-	// 禁用Nagle算法
-    if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (const void*)&optval, sizeof(int)) == -1) {
-		perror("setsockopt");
-		close(sockfd);
-        return -1;
-	}
-	*/
-	
 	return sockfd;
 }
 
@@ -39,8 +28,6 @@ int sendn(int sockfd, char* buf, int len) {
 		if (ret < 0) {
 			if (errno == EAGAIN)
 				continue;
-			printf("errno = %d\n", errno);
-			return -1;
 		} else if (ret == 0) {
 			close(sockfd);
 			return 0;
@@ -58,8 +45,6 @@ int recvn(int sockfd, char* buf, int len) {
 		if (ret < 0) {
 			if (errno == EAGAIN)
 				continue;
-			printf("errno = %d\n", errno);
-			return -1;
 		} else if (ret == 0) {
 			close(sockfd);
 			exit(1);
@@ -80,7 +65,7 @@ int make_socket_non_blocking(int fd) {
         return -1;
 }
 
-static int omitBlank(const char* line, int begin) {
+static int omit_blank(const char* line, int begin) {
 	int i = begin;
 	for (; i < strlen(line) - 1; ++i) {
 		if (line[i] != ' ')
@@ -89,20 +74,63 @@ static int omitBlank(const char* line, int begin) {
 	return i;
 }
 
-static int get_file_size(int filefd)
-{
+int get_file_size(int filefd) {
 	struct stat statbuf;
 	fstat(filefd, &statbuf);
 	return statbuf.st_size;
 }
 
-int command_ctl_puts(int sockfd, int filefd) {
+int get_command_line(command_line_t* command_line) {
+	char linebuf[1024];
+	bzero(linebuf, sizeof(linebuf));
+	read(STDIN_FILENO, linebuf, sizeof(linebuf));
+	int len = strlen(linebuf) - 1 ; //read包括‘\n'
+	char commands[][10] = {"puts", "gets"};
+
+	for (int i = 0; i < sizeof(commands) / sizeof(commands[0]); ++i) {
+		if (len >= strlen(commands[i]) && !strncmp(linebuf, commands[i], strlen(commands[i]))) {
+			strcpy(command_line->command, commands[i]);
+			int index = omit_blank(linebuf, strlen(commands[i]));
+			strncpy(command_line->file_name, linebuf + index, strlen(linebuf) - 1 - index);
+			return 0;
+		}
+	}	
+	return -1;
+}
+
+int request_control(int sockfd) {
+	command_line_t command_line;
+	if (-1 == get_command_line(&command_line))
+		return -1;
+
+	if (!strcmp(command_line.command, "puts"))
+		request_control_puts(sockfd, &command_line);
+	else if (!strcmp(command_line.command, "gets"))
+		request_control_gets(sockfd, &command_line);
+}
+
+int request_control_puts(int sockfd, command_line_t* command_line) {
+	request_pkg_head_t pkg_head;
+	bzero(&pkg_head, sizeof(pkg_head));
+
+	pkg_head.pkg_type = htons(command_puts);
+	pkg_head.body_len = htons(strlen(command_line->file_name));
+	int filefd;
+	if ((filefd = open(command_line->file_name, O_RDONLY)) == -1) {
+		perror("open");
+		return -1;
+	}
+
+	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
+	sendn(sockfd, command_line->file_name, strlen(command_line->file_name));
+	sendfile_by_mmap(sockfd, filefd);
+}
+
+int sendfile_by_mmap(int sockfd, int filefd) {
 	int file_size = get_file_size(filefd);
-	printf("file_size = %d\n", file_size);
 	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
 	char* p = file_mmap;
-	printf("file_mmap = %s\n", file_mmap);
-	int one_send_size = 1024;
+	int one_send_size = ONE_BODY_MAX;
 	int remain = file_size;
 	int ret;
 	request_pkg_head_t pkg_head;
@@ -115,23 +143,13 @@ int command_ctl_puts(int sockfd, int filefd) {
 			pkg_head.body_len = htons(one_send_size);
 		
 		// 发送包头
-		if ((ret = sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head))) == -1) {
-			close(sockfd);
-			return -1;
-		}
-
+		sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 		// 发送包体
 		if (remain < one_send_size)
-			ret = sendn(sockfd, file_mmap, remain);
+			sendn(sockfd, file_mmap, remain);
 		else
-			ret = sendn(sockfd, file_mmap, one_send_size);
+			sendn(sockfd, file_mmap, one_send_size);
 		
-		if (-1 == ret) {
-			close(sockfd);
-			return -1;
-		}
-
-		printf("body ret = %d\n", ret);
 		file_mmap += one_send_size;
 		remain -= one_send_size;
 	}
@@ -139,129 +157,66 @@ int command_ctl_puts(int sockfd, int filefd) {
 	ret = munmap(p, file_size);
 	if (-1 == ret) {
 		perror("munmap");
-		return ;
+		return -1;
 	}
 
 	bzero(&pkg_head, sizeof(pkg_head));
 	pkg_head.pkg_type = htons(end_file);
-	// 发送包头
-	if ((ret = sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head))) == -1) {
-		close(sockfd);
-		return -1;
-	}
-
-	printf("1111\n");
-	/*
-	char buff[2];
-	int len, ret;
-	while((len = read(filefd, buff, sizeof(buff))) > 0) {
-		printf("len = %d\n", len);
-		bzero(&pkg_head, sizeof(pkg_head));
-		pkg_head.pkg_type = htons(file_content);
-		pkg_head.body_len = htons(len);
-
-		printf("body_len = %u\n", len);
-
-		// 发送包头
-		if ((ret = sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head))) == -1) {
-			close(sockfd);
-			return -1;
-		}
-		printf("head ret = %d\n", ret);
-		// 发送包体
-		if((ret = sendn(sockfd, buff, len)) == -1) {
-			close(sockfd);
-			return -1;
-		}
-		printf("body ret = %d\n", ret);
-	}
-	*/
-
+	// 发送文件结束标志
+	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 }
 
-
-int command_control(int sockfd) {
+int request_control_gets(int sockfd, command_line_t* command_line) {
 	request_pkg_head_t pkg_head;
 	bzero(&pkg_head, sizeof(pkg_head));
 
-	char linebuf[1024];
-	bzero(linebuf, sizeof(linebuf));
-	read(STDIN_FILENO, linebuf, sizeof(linebuf));
-	int i;
-	int len = strlen(linebuf) - 1 ; //read包括‘\n'
-	char body[ONE_BODY_MAX];
-	bzero(body, sizeof(body));
-	if (len >= 4 && !strncmp(linebuf, "puts", 4)) {
-		pkg_head.pkg_type = htons(command_puts);
+	pkg_head.pkg_type = htons(command_gets);
+	pkg_head.body_len = htons(strlen(command_line->file_name));
 
-		int index = omitBlank(linebuf, strlen("puts"));
-		strncpy(body, linebuf + index, strlen(linebuf) - 1 - index);
-	}
-	pkg_head.body_len = htons(strlen(body));
-
-	int filefd = open(body, O_RDONLY);
-	if (-1 == filefd) {
-		perror("open");
-		return -1;
-	}
-	
-	int ret;
-	if ((ret = sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head))) == -1)
-		return ret;
-	printf("ret = %d\n", ret);
-
-	if ((ret = sendn(sockfd, body, strlen(body))) == -1)
-		return ret;
-	printf("ret = %d\n", ret);
-
-	command_ctl_puts(sockfd, filefd);
-/*
-	if (len >= 4 && !strncmp(linebuf, "puts", 4)) {
-		int filefd = open(body, O_RDONLY);
-		int file_size = get_file_size(body);
-		if (-1 == file_size)
-			return ;
-		printf("file_size = %d\n", file_size);
-
-		bzero(&pkg_header, sizeof(pkg_header));
-		pkg_header.pkg_type = htons(command_puts);
-		pkg_header.pkg_len = htons(sizeof(pkg_header_t) + file_size);
-
-		if ((ret = sendn(sockfd, (char*)&pkg_header, sizeof(pkg_header))) == -1)
-			return ret;
-
-		char buff[1024];
-		int ret;
-		while ((len = read(filefd, buff, sizeof(buff))) > 0)
-			sendn(sockfd, buff, len);
-	} else if (len >= 4 && !strncmp(linebuf, "gets", 4)) {
-
-	}
-*/
+	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
+	sendn(sockfd, command_line->file_name, strlen(command_line->file_name));
 }
 
-
-int socket_control(int sockfd) {
-	//printf("socket_controller\n");
+int response_control(int sockfd) {
 	response_pkg_head_t response_pkg_head;
 	bzero(&response_pkg_head, sizeof(response_pkg_head));
-
-	if (-1 == recvn(sockfd, (char*)&response_pkg_head, sizeof(response_pkg_head_t)))
-		return ;
-
+	recvn(sockfd, (char*)&response_pkg_head, sizeof(response_pkg_head_t));
 	unsigned short command_type = ntohs(response_pkg_head.pkg_type);
-	unsigned short handle_result = ntohs(response_pkg_head.handle_result);
 
 	switch (command_type) {
 		case command_puts:
-			if (handle_result == response_success)
-				printf("上传成功\n");
-			else if (handle_result == response_failed)
-				printf("上传失败\n");
+			response_control_puts(&response_pkg_head);
 			break;
 		case command_gets:
+			response_control_gets(&response_pkg_head);
+			break;
+		case file_content:
+			response_control_file_content(&response_pkg_head);
 			break;
 		default:
 			break;
 	}
+}
+
+int response_control_puts(response_pkg_head_t* response_pkg_head) {
+	printf("%s\n", __func__);
+	unsigned short handle_result = ntohs(response_pkg_head->handle_result);
+	if (handle_result == response_success)
+		printf("上传成功\n");
+	else if (handle_result == response_failed)
+		printf("上传失败\n");
+}
+
+int response_control_gets(response_pkg_head_t* response_pkg_head) {
+	printf("%s\n", __func__);
+	unsigned short handle_result = ntohs(response_pkg_head->handle_result);
+	if (handle_result == response_success)
+		printf("下载成功\n");
+	else if (handle_result == response_failed)
+		printf("下载失败\n");
+}
+
+int response_control_file_content(response_pkg_head_t* response_pkg_head) {
+	printf("aaa\n");
+	
 }

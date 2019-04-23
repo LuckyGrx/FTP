@@ -52,6 +52,12 @@ typedef struct response_pkg_head {
 }response_pkg_head_t;
 #pragma pack()
 
+
+typedef struct command_line {
+	char command[5];
+	char file_name[ONE_BODY_MAX];
+}command_line_t;
+
 enum response {
 	response_success,
 	response_failed
