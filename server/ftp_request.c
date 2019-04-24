@@ -22,7 +22,7 @@ void request_controller(void* ptr) {
 		
 		switch(request->curstate) {
 			case head_init:
-				if (reco == sizeof(request_pkg_head_t)) // 刚好收到完整包头，拆解包头
+				if (request->need_recv_len == reco) // 刚好收到完整包头，拆解包头
 					request_head_recv_finish(request);
 				else {// 收到的包头不完整
 					request->curstate = head_recving;
