@@ -19,11 +19,15 @@ int main (int argc, char* argv[]) {
 	init_request_t(request, listenfd, epollfd);
 	ftp_epoll_add(epollfd, listenfd, request, EPOLLIN | EPOLLET);
 
+	// 初始化线程池
 	ftp_threadpool_t* pool = threadpool_init(conf.threadnum);
+
 	for (;;) {
+
 		// 调用epoll_wait函数，返回接收到事件的数量
         int events_num = ftp_epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
 
+		// 遍历events数组
         ftp_handle_events(epollfd, listenfd, events, events_num, pool);
 	}
 	free(events);

@@ -69,6 +69,8 @@ close:
 } 
 
 void request_close_conn(ftp_request_t* request) {
+	ftp_epoll_del(request->epollfd, request->fd, request, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
+
 	close(request->fd);
 	free(request->body_pointer);
 	request->body_pointer = NULL;
@@ -79,7 +81,6 @@ void request_close_conn(ftp_request_t* request) {
 void request_head_recv_finish(ftp_request_t* request) {
 	unsigned short body_len = ntohs(((request_pkg_head_t*)request->head)->body_len);   // 
 	request->type = ntohs(((request_pkg_head_t*)request->head)->pkg_type);
-	printf("body_len = %u\n", body_len);
 
 	if (body_len > ONE_BODY_MAX) {
 		request->curstate = head_init;
@@ -112,11 +113,7 @@ void request_body_recv_finish(ftp_request_t* request) {
 
 void request_handler(ftp_request_t* request) {
 	unsigned short command_type = request->type;
-	printf("command_type = %u\n", command_type);
 	switch (command_type) {
-		case command_gets:
-			command_handle_gets(request);
-			break;
 		case command_puts:
 			command_handle_puts(request);
 			break;
@@ -131,44 +128,26 @@ void request_handler(ftp_request_t* request) {
 	}
 }
 
-int command_handle_end_file(ftp_request_t* request) {
-	response_pkg_head_t response_pkg_head;
-	bzero(&response_pkg_head, sizeof(response_pkg_head));
-	response_pkg_head.pkg_type = htons(command_puts);
-	response_pkg_head.handle_result = htons(response_success);
-
-	if (-1 == sendn(request->fd, (char*)&response_pkg_head, sizeof(response_pkg_head_t)))
-		return ;
-}
-
-int command_handle_file_content(ftp_request_t* request) {
-	printf("%s\n", __func__);
-	// 这里不能用stlen(request->body_pointer)，是存在存储的是字节流的情况
-	write(request->filefd, request->body_pointer, request->body_len);
-	free(request->body_pointer);
-	request->body_pointer = NULL;
-}
-
 int command_handle_puts(ftp_request_t* request) {
-	printf("%s\n", __func__);
-	printf("%s\n", request->body_pointer);
 	request->filefd = open(request->body_pointer, O_RDWR | O_CREAT, 0666);
 
 	free(request->body_pointer);
 	request->body_pointer = NULL;
 }
 
-int command_handle_gets(ftp_request_t* request) {
-	printf("%s\n", __func__);
-	printf("%s\n", request->body_pointer);
-	
-	int filefd;
-	if ((filefd = open(request->body_pointer, O_RDONLY)) == -1) {
-		response_pkg_head_t response_pkg_head;
-		bzero(&response_pkg_head, sizeof(response_pkg_head));
-		response_pkg_head.pkg_type = htons(command_gets);
-		response_pkg_head.handle_result = htons(response_failed);
-		return -1;
-	}
-	sendfile_by_mmap(request->fd, filefd);
+int command_handle_file_content(ftp_request_t* request) {
+	// 这里不能用stlen(request->body_pointer)，是存在存储的是字节流的情况
+	rio_writen(request->filefd, request->body_pointer, request->body_len);
+
+	free(request->body_pointer);
+	request->body_pointer = NULL;
+}
+
+int command_handle_end_file(ftp_request_t* request) {
+	response_pkg_head_t response_pkg_head;
+	bzero(&response_pkg_head, sizeof(response_pkg_head));
+	response_pkg_head.pkg_type = htons(command_puts);
+	response_pkg_head.handle_result = htons(response_success);
+
+	sendn(request->fd, (char*)&response_pkg_head, sizeof(response_pkg_head_t));
 }

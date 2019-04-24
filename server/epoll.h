@@ -20,5 +20,4 @@ int ftp_epoll_wait(int epollfd, struct epoll_event *events, int max_events, int 
 void ftp_handle_events(int epollfd, int listenfd, struct epoll_event* events,
                       int events_num, ftp_threadpool_t* pool);
 
-
 #endif

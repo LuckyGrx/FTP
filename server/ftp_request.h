@@ -3,6 +3,7 @@
 
 #include "head.h"
 #include "util.h"
+#include "rio.h"
 
 #define ONE_BODY_MAX 1024
 #define BUFF_SIZE 1024
@@ -36,7 +37,6 @@ enum state {
 
 enum type {
 	command_puts,
-	command_gets,
 	file_content,
 	end_file
 };
@@ -53,6 +53,8 @@ typedef struct ftp_request {
 	char*            body_pointer;                           //
 	unsigned short   body_len;                               // 记录body的长度
 	int              filefd;                                 // 
+
+	void*            timer;
 }ftp_request_t;
 
 void init_request_t(ftp_request_t* request, int fd, int epollfd);
@@ -66,8 +68,6 @@ void request_body_recv_finish(ftp_request_t* request);
 void request_handler(ftp_request_t* request);
 
 int command_handle_puts(ftp_request_t* request);
-
-int command_handle_gets(ftp_request_t* request);
 
 int command_handle_file_content(ftp_request_t* request);
 

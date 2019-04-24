@@ -56,7 +56,7 @@ void tcp_accept(int epollfd, int listenfd) {
 
 		// 文件描述符可以读
 		ftp_epoll_add(epollfd, connfd, request, EPOLLIN | EPOLLET | EPOLLONESHOT); 
-		//ftp_epoll_add(epollfd, connfd, request, EPOLLIN | EPOLLET); 
+
 	}
 	if (-1 == connfd) {
 		if (errno != EAGAIN) {
@@ -65,8 +65,6 @@ void tcp_accept(int epollfd, int listenfd) {
 		}
 	}
 }
-
-
 
 int sendn(int sfd, char* buf, int len) {
 	int total = 0;
@@ -77,7 +75,7 @@ int sendn(int sfd, char* buf, int len) {
 			total = total + ret;
 		else if (0 == ret) {
 			close(sfd);
-			exit(1);
+			exit(-1);
 			return 0;
 		}
 		else {
@@ -172,7 +170,6 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 		
 		file_mmap += one_send_size;
 		remain -= one_send_size;
-		printf("hhh\n");
 	}
 
 	ret = munmap(p, file_size);

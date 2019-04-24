@@ -10,16 +10,16 @@ int main(int argc,char* argv[]){
 	int rc = make_socket_non_blocking(sockfd);
 
 	int epollfd = epoll_create(1);
-	struct epoll_event event, evs[MAX_EVENT_NUMBER];
+	struct epoll_event event, events[MAX_EVENT_NUMBER];
 
 	ftp_epoll_add(epollfd, sockfd, EPOLLIN);
 	ftp_epoll_add(epollfd, STDIN_FILENO, EPOLLIN);
 
 	int result;
 	for (;;) {
-		result = epoll_wait(epollfd, evs, MAX_EVENT_NUMBER, -1);
+		result = epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
 		for(int i = 0; i < result; ++i) {
-			int fd = evs[i].data.fd;
+			int fd = events[i].data.fd;
 			if (STDIN_FILENO == fd)
 				request_control(sockfd);
 			if (sockfd == fd)

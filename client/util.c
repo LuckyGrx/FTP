@@ -85,7 +85,7 @@ int get_command_line(command_line_t* command_line) {
 	bzero(linebuf, sizeof(linebuf));
 	read(STDIN_FILENO, linebuf, sizeof(linebuf));
 	int len = strlen(linebuf) - 1 ; //read包括‘\n'
-	char commands[][10] = {"puts", "gets"};
+	char commands[][10] = {"puts"};
 
 	for (int i = 0; i < sizeof(commands) / sizeof(commands[0]); ++i) {
 		if (len >= strlen(commands[i]) && !strncmp(linebuf, commands[i], strlen(commands[i]))) {
@@ -105,8 +105,6 @@ int request_control(int sockfd) {
 
 	if (!strcmp(command_line.command, "puts"))
 		request_control_puts(sockfd, &command_line);
-	else if (!strcmp(command_line.command, "gets"))
-		request_control_gets(sockfd, &command_line);
 }
 
 int request_control_puts(int sockfd, command_line_t* command_line) {
@@ -166,17 +164,6 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 }
 
-int request_control_gets(int sockfd, command_line_t* command_line) {
-	request_pkg_head_t pkg_head;
-	bzero(&pkg_head, sizeof(pkg_head));
-
-	pkg_head.pkg_type = htons(command_gets);
-	pkg_head.body_len = htons(strlen(command_line->file_name));
-
-	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
-	sendn(sockfd, command_line->file_name, strlen(command_line->file_name));
-}
-
 int response_control(int sockfd) {
 	response_pkg_head_t response_pkg_head;
 	bzero(&response_pkg_head, sizeof(response_pkg_head));
@@ -186,12 +173,6 @@ int response_control(int sockfd) {
 	switch (command_type) {
 		case command_puts:
 			response_control_puts(&response_pkg_head);
-			break;
-		case command_gets:
-			response_control_gets(&response_pkg_head);
-			break;
-		case file_content:
-			response_control_file_content(&response_pkg_head);
 			break;
 		default:
 			break;
@@ -205,18 +186,4 @@ int response_control_puts(response_pkg_head_t* response_pkg_head) {
 		printf("上传成功\n");
 	else if (handle_result == response_failed)
 		printf("上传失败\n");
-}
-
-int response_control_gets(response_pkg_head_t* response_pkg_head) {
-	printf("%s\n", __func__);
-	unsigned short handle_result = ntohs(response_pkg_head->handle_result);
-	if (handle_result == response_success)
-		printf("下载成功\n");
-	else if (handle_result == response_failed)
-		printf("下载失败\n");
-}
-
-int response_control_file_content(response_pkg_head_t* response_pkg_head) {
-	printf("aaa\n");
-	
 }

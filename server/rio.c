@@ -33,7 +33,7 @@ ssize_t rio_writen(int fd, void *usrbuf, size_t n)
             if (errno == EINTR)  
                 nwritten = 0;    
             else
-            return -1;       
+                return -1;       
         }
         nleft -= nwritten;
         bufp += nwritten;

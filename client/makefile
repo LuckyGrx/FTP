@@ -2,7 +2,7 @@
 CC = gcc -std=gnu99
 
 client:client.o util.o epoll.o
-	$(CC) -w -o client *.o -lcrypt
+	$(CC) -w -o client *.o
 
 client.o:client.c 
 	$(CC) -w -c client.c

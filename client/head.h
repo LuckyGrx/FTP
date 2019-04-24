@@ -26,14 +26,8 @@
 #define ONE_BODY_MAX 1024
 #define BUFF_SIZE 1024
 
-int register_user(int,char*,char*);
-void print_register(char**,char**);
-void print_choose(char**);
-int login_user(int);
-
 enum type {
 	command_puts,
-	command_gets,
 	file_content,
 	end_file
 };
