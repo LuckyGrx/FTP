@@ -6,6 +6,9 @@
 #define DEFAULT_CONFIG "ftp.conf"
 
 int main (int argc, char* argv[]) {
+	// 开启守护进程
+	//ftp_daemon();
+
 	ftp_conf_t conf;
 	read_conf(DEFAULT_CONFIG, &conf);
 

@@ -31,4 +31,7 @@ int get_file_size(int filefd);
 
 int sendfile_by_mmap(int sockfd, int filefd);
 
+
+int ftp_daemon();
+
 #endif

@@ -183,3 +183,45 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 	// 发送文件结束标志
 	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 }
+
+
+int ftp_daemon() {
+	pid_t pid = fork();
+	if (pid < 0) {
+		return -1;
+	} else if (pid > 0)
+		exit(0);
+
+	umask(0);
+
+	pid_t sid = setsid(); // 使子进程成为进程组组长
+	if (sid < 0)
+		return -1;
+
+	pid = fork();    // 使子进程不是进程组组长，这样该子进程就不能打开控制终端
+	if (pid < 0)
+		return -1;
+	else if (pid > 0)
+		exit(0);
+
+
+	int fd = open("/dev/null", O_RDWR);
+
+	if (-1 == fd) {
+		return -1;
+	}
+
+	if (dup2(fd, STDIN_FILENO) == -1)
+		return -1;
+	if (dup2(fd, STDOUT_FILENO) == -1)
+		return -1;
+	if (dup2(fd, STDERR_FILENO) == -1)
+		return -1;
+
+	if (fd > STDERR_FILENO) {
+		if (close(fd) == -1)
+			return -1;
+	}
+
+	return 1;
+}
