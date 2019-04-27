@@ -16,12 +16,19 @@ typedef struct ftp_threadpool {
 	task_t* head;           // 任务链表头节点
 	int threadnum;
 	int queuesize;          // 任务链表长度(不含头节点)
+
+	int shutdown;           // 关机模式（平滑关闭、立即关闭)
+	int runningnum;         // 正在运行的工作线程数量
 }ftp_threadpool_t;
+
+typedef enum {
+	immediate_shutdown = 1,
+	gracefult_shutdown = 2
+}ftp_threadpool_shutdown_t;
 
 ftp_threadpool_t* threadpool_init(int);
 int threadpool_add(ftp_threadpool_t*, void (*func)(void*), void* arg);
-void threadpool_get(ftp_threadpool_t*);
 int threadpool_free(ftp_threadpool_t*);
-int threadpool_destroy(ftp_threadpool_t*);
+int threadpool_destroy(ftp_threadpool_t* pool, int shutdown);
 
 #endif

@@ -14,6 +14,7 @@
 typedef struct ftp_conf {
 	int port;
 	int threadnum;
+	int shutdown;
 }ftp_conf_t;
 
 int make_socket_non_blacking(int fd);

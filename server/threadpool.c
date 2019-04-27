@@ -1,10 +1,39 @@
 #include "threadpool.h"
 
 void* threadpool_worker(void* p) {
+	if (NULL == p)
+		return NULL;
 	ftp_threadpool_t* pool = (ftp_threadpool_t*)p;
 	while (1) {
-		threadpool_get(pool);
+		//
+		pthread_mutex_lock(&(pool->mutex));
+
+		while (0 == pool->queuesize && !(pool->shutdown))
+			pthread_cond_wait(&(pool->cond), &(pool->mutex));
+
+		// 立即停机模式、平滑停机且没有未完成任务则退出
+		if (pool->shutdown == immediate_shutdown)
+			break;
+		else if (pool->shutdown == gracefult_shutdown && pool->queuesize == 0)
+			break;
+	
+		// 得到第一个task
+		task_t* task = pool->head->next;
+
+		if (NULL == task) {
+			pthread_mutex_unlock(&(pool->mutex));
+			continue;
+		}
+
+		// 存在task则取走并开锁
+		pool->head->next = task->next;
+		--(pool->queuesize);
+		pthread_mutex_unlock(&(pool->mutex));
+
+	    (*(task->func))(task->arg);
+		free(task);
 	}
+	pool->runningnum--;
 	pthread_exit(NULL);
 }
 
@@ -20,15 +49,19 @@ ftp_threadpool_t* threadpool_init(int threadnum){
 		goto err;
 	if (pthread_mutex_init(&(pool->mutex), NULL) != 0)
 		goto err;
-	pool->threadnum = threadnum;
+	pool->threadnum = 0;
 	pool->queuesize = 0;
+	pool->shutdown = 0;
+	pool->runningnum = 0;
 
 	int i;
-	for(i = 0; i < pool->threadnum; ++i) {
+	for(i = 0; i < threadnum; ++i) {
 		if (pthread_create(&(pool->threads[i]), NULL, threadpool_worker, pool) != 0) {
-			threadpool_destroy(pool);
+			threadpool_destroy(pool, 0);
 			return NULL;
 		}
+		pool->threadnum++;
+		pool->runningnum++;
 	}
 	return pool;
 
@@ -40,11 +73,14 @@ err:
 
 
 int threadpool_add(ftp_threadpool_t* pool, void (*func)(void*), void *arg) {
-	if (NULL == pool)
+	if (NULL == pool || NULL == func)
 		return -1;
-	pthread_mutex_lock(&(pool->mutex));
+	if (pthread_mutex_lock(&(pool->mutex)) != 0)
+		return -1;
 
 	task_t* task = (task_t*)calloc(1, sizeof(task_t));
+	if (NULL == task)
+		goto err;
 	task->func = func;
 	task->arg = arg;
 	
@@ -54,27 +90,13 @@ int threadpool_add(ftp_threadpool_t* pool, void (*func)(void*), void *arg) {
 	++(pool->queuesize);
 	pthread_cond_signal(&(pool->cond));
 
+err:
 	pthread_mutex_unlock(&(pool->mutex));
 	return 0;
 }
 
-void threadpool_get(ftp_threadpool_t* pool) {
-	if (NULL == pool)
-		return ;
-
-	pthread_mutex_lock(&(pool->mutex));
-	while (0 == pool->queuesize)
-		pthread_cond_wait(&(pool->cond), &(pool->mutex));
-	task_t* task = pool->head->next;
-	--(pool->queuesize);
-	pthread_mutex_unlock(&(pool->mutex));
-
-    (*(task->func))(task->arg);
-	free(task);
-}
-
 int threadpool_free(ftp_threadpool_t* pool) {
-	if (NULL == pool)
+	if (NULL == pool || pool->runningnum > 0)
 		return -1;
 	if (pool->threads)
 		free(pool->threads);
@@ -86,16 +108,30 @@ int threadpool_free(ftp_threadpool_t* pool) {
 		free(task);
 	}
 	free(pool->head);
+	free(pool);
 	return 0;
 }
 
-int threadpool_destroy(ftp_threadpool_t* pool) {
+int threadpool_destroy(ftp_threadpool_t* pool, int shutdown_model) {
 	if (NULL == pool)
 		return -1;
-	int i;
-	for (i = 0; i < pool->threadnum; ++i) {
+
+	// 避免两次调用pthreadpool_destroy方法
+	if (pool->shutdown)
+		goto next;
+
+	pool->shutdown = shutdown_model;
+
+	pthread_cond_broadcast(&(pool->cond));
+
+	for (int i = 0; i < pool->threadnum; ++i) {
 		if (pthread_join(pool->threads[i], NULL) != 0)
 			return -1;
 	}
+
+	pthread_mutex_destroy(&(pool->mutex));
+	pthread_cond_destroy(&(pool->cond));
+	threadpool_free(pool);
+next:
 	return 0;
 }

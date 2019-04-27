@@ -1,6 +1,7 @@
 #include "head.h"
 #define MAX_EVENT_NUMBER 1024
 
+
 int main(int argc,char* argv[]){
 	if (argc != 3) {
 		printf("args error\n");
@@ -8,6 +9,7 @@ int main(int argc,char* argv[]){
 	}
 	int sockfd = tcp_connect(argv[1], atoi(argv[2]));
 	int rc = make_socket_non_blocking(sockfd);
+
 
 	int epollfd = epoll_create(1);
 	struct epoll_event event, events[MAX_EVENT_NUMBER];
