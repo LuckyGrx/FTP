@@ -61,12 +61,19 @@ int tcp_connect(const char* ip, int port) {
 	return sockfd;
 }
 
-int request_control_puts(int sockfd, const char* file_name) {
+int request_control_puts(int sockfd, char* file_name) {
+	static int file_index = 1;
 	request_pkg_head_t pkg_head;
 	bzero(&pkg_head, sizeof(pkg_head));
 
+	char file_name_send[15];
+	strcpy(file_name_send, file_name);
+
+	sprintf(file_name_send, "%s%d", file_name, file_index++);
+	printf("%s\n", file_name_send);
+
 	pkg_head.pkg_type = htons(command_puts);
-	pkg_head.body_len = htons(strlen(file_name));
+	pkg_head.body_len = htons(strlen(file_name_send));
 	int filefd;
 	if ((filefd = open(file_name, O_RDONLY)) == -1) {
 		perror("open");
@@ -74,7 +81,7 @@ int request_control_puts(int sockfd, const char* file_name) {
 	}
 
 	send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
-	send(sockfd, file_name, strlen(file_name), 0);
+	send(sockfd, file_name_send, strlen(file_name_send), 0);
 	sendfile_by_mmap(sockfd, filefd);
 }
 
@@ -133,11 +140,11 @@ int main(int argc, char** argv) {
 	pthread_t* pidnums = (pthread_t*)calloc(pthreadnum, sizeof(pthread_t));
 	int i;
 	for (i = 0; i < pthreadnum; ++i) {
-		char file_name[15];
-		sprintf(file_name, "%s%d%s", "movie", i + 1, ".mkv");
-		printf("%s\n", file_name);
+		char file_name[15] = "puts.txt";
+		//sprintf(file_name, "%s%d%s", "movie", i + 1, ".mkv");
+		//printf("%s\n", file_name);
 		pthread_create(&(pidnums[i]), NULL, threadfunc, file_name);
-		sleep(2);
+		//sleep(2);
 	}
 
 	for (i = 0; i < pthreadnum; ++i) {
