@@ -1,7 +1,5 @@
 #include "time_wheel.h"
 
-
-
 int time_wheel_init() {
     time_wheel.cur_slot = 0;
     time_wheel.slot_num = SLOT_NUM;
@@ -27,7 +25,7 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler)
 
     slot = (time_wheel.cur_slot + (ticks % time_wheel.slot_num)) % time_wheel.slot_num;
 
-    tw_timer* timer = (tw_timer*)calloc(1, sizeof(tw_timer));
+    tw_timer_t* timer = (tw_timer_t*)calloc(1, sizeof(tw_timer_t));
     timer->rotation = rotation;
     timer->slot = slot;
     timer->handler = handler;
@@ -52,7 +50,7 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler)
 int time_wheel_del_timer(ftp_connection_t* connection) {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
-    tw_timer* timer = (tw_timer*)connection->timer;
+    tw_timer_t* timer = (tw_timer_t*)connection->timer;
 
 
     if (timer != NULL) {
@@ -80,9 +78,7 @@ void time_wheel_alarm_handler(int sig) {
 int time_wheel_tick() {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
-    tw_timer* tmp = time_wheel.slots[time_wheel.cur_slot];
-
-    time_t tt = time(NULL);
+    tw_timer_t* tmp = time_wheel.slots[time_wheel.cur_slot];
 
     while (tmp != NULL) {
         if (tmp->rotation > 0) {
@@ -105,7 +101,7 @@ int time_wheel_tick() {
                 if (tmp->next)
                     tmp->next->prev = tmp->prev;
 
-                tw_timer* tmp2 = tmp->next;
+                tw_timer_t* tmp2 = tmp->next;
                 free(tmp);
                 tmp = tmp2;
             }

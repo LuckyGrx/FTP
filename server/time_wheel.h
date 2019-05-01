@@ -20,7 +20,7 @@ typedef struct tw_timer {
 
     struct tw_timer* next;            // 指向下一个定时器
     struct tw_timer* prev;            // 指向上一个定时器
-}tw_timer;
+}tw_timer_t;
 
 
 typedef struct time_wheel {
@@ -36,9 +36,9 @@ time_wheel_t time_wheel;
 
 int time_wheel_init();
 
-int time_wheel_add_timer(ftp_connection_t* request, timer_handler_pt handler);
+int time_wheel_add_timer(ftp_connection_t* connnection, timer_handler_pt handler);
 
-int time_wheel_del_timer(ftp_connection_t* request);
+int time_wheel_del_timer(ftp_connection_t* connection);
 
 int time_wheel_tick();
 
