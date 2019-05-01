@@ -41,38 +41,41 @@ enum type {
 	end_file
 };
 
-typedef struct ftp_request {
+typedef struct ftp_connection {
 	int              epollfd;
 	int              fd;
 	unsigned short   type;
 	enum state       curstate;
 	unsigned short   handle_result;                          // 
+
+	// 收包相关
     char             head[sizeof(request_pkg_head_t)];       // 存放包头信息
     char*            recv_pointer;         	 			     // 接收数据的缓冲区的头指针
     unsigned int     need_recv_len;                          // 还要收到多少数据
 	char*            body_pointer;                           //
 	unsigned short   body_len;                               // 记录body的长度
+
 	int              filefd;                                 // 
 
 	void*            timer;
-}ftp_request_t;
+}ftp_connection_t;
 
-void init_request_t(ftp_request_t* request, int fd, int epollfd);
+void init_connection_t(ftp_connection_t* connection, int fd, int epollfd);
 
-void request_controller(void*);
+void connection_controller(void*);
 
-void request_head_recv_finish(ftp_request_t* request);
+void connection_head_recv_finish(ftp_connection_t* connection);
 
-void request_body_recv_finish(ftp_request_t* request);
+void connection_body_recv_finish(ftp_connection_t* connection);
 
-void request_handler(ftp_request_t* request);
+void connection_handler(ftp_connection_t* connection);
 
-int command_handle_puts(ftp_request_t* request);
+int command_handle_puts(ftp_connection_t* connection);
 
-int command_handle_file_content(ftp_request_t* request);
+int command_handle_file_content(ftp_connection_t* connection);
 
-int command_handle_end_file(ftp_request_t* request);
+int command_handle_end_file(ftp_connection_t* connection);
 
-void request_close_conn(ftp_request_t* request);
+void ftp_connection_close(ftp_connection_t* connection);
 
 #endif

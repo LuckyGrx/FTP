@@ -1,6 +1,6 @@
 #include "util.h"
 #include "epoll.h"
-#include "ftp_request.h"
+#include "ftp_connection.h"
 #include "threadpool.h"
 #include "time_wheel.h"
 
@@ -19,9 +19,9 @@ int main (int argc, char* argv[]) {
 	struct epoll_event* events = (struct epoll_event*)calloc(1, sizeof(struct epoll_event)); 
 	int epollfd = ftp_epoll_create(&events);
 
-	ftp_request_t* request = (ftp_request_t*)calloc(1, sizeof(ftp_request_t));
-	init_request_t(request, listenfd, epollfd);
-	ftp_epoll_add(epollfd, listenfd, request, EPOLLIN | EPOLLET);
+	ftp_connection_t* connection = (ftp_connection_t*)calloc(1, sizeof(ftp_connection_t));
+	init_connection_t(connection, listenfd, epollfd);
+	ftp_epoll_add(epollfd, listenfd, connection, EPOLLIN | EPOLLET);
 
 	// 初始化线程池
 	ftp_threadpool_t* pool = threadpool_init(conf.threadnum);
