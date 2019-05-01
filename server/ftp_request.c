@@ -6,10 +6,16 @@ void init_request_t(ftp_request_t* request, int fd, int epollfd) {
 	request->curstate = head_init;
 	request->recv_pointer = request->head;
 	request->need_recv_len = sizeof(request_pkg_head_t);
+
+	request->body_pointer = NULL;
+	request->timer = NULL;
 }
 
 void request_controller(void* ptr) {
 	ftp_request_t* request = (ftp_request_t*)ptr;
+
+	// 删除定时器
+	time_wheel_del_timer(request);
 
 	while (1) {
 		int reco = recv(request->fd, request->recv_pointer, request->need_recv_len, 0);
@@ -61,6 +67,8 @@ void request_controller(void* ptr) {
 		}
 	}
 	ftp_epoll_mod(request->epollfd, request->fd, request, EPOLLIN | EPOLLET | EPOLLONESHOT); 
+	// 重置定时器
+	time_wheel_add_timer(request, request_close_conn);
 
 	return ;
 
@@ -69,8 +77,12 @@ close:
 } 
 
 void request_close_conn(ftp_request_t* request) {
-	ftp_epoll_del(request->epollfd, request->fd, request, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
+	printf("%s\n", __func__);
+	if (NULL == request)
+		return ;
+	//ftp_epoll_del(request->epollfd, request->fd, request, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
 
+	printf("333\n");
 	close(request->fd);
 	free(request->body_pointer);
 	request->body_pointer = NULL;

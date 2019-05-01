@@ -1,6 +1,6 @@
 CC = gcc -std=gnu99
 
-server:server.o util.o epoll.o ftp_request.o threadpool.o rio.o
+server:server.o util.o epoll.o ftp_request.o threadpool.o rio.o time_wheel.o
 	$(CC) -w -o server *.o -lpthread
 
 server.o:server.c
@@ -18,11 +18,8 @@ ftp_request.o:ftp_request.c
 rio.o:rio.c
 	$(CC) -w -c rio.c
 
-#ftp_timer_heap.o:ftp_timer_heap.c
-#	$(CC) -w -c ftp_timer_heap.c
-
-#ftp_timer.o:ftp_timer.c
-#	$(CC) -w -c ftp_timer.c
+time_wheel.o:time_wheel.c
+	$(CC) -w -c time_wheel.c
 
 threadpool.o:threadpool.c
 	$(CC) -w -c threadpool.c
