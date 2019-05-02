@@ -4,9 +4,12 @@ void* threadpool_worker(void* p) {
 	if (NULL == p)
 		return NULL;
 	ftp_threadpool_t* pool = (ftp_threadpool_t*)p;
+
 	while (1) {
 		//
 		pthread_mutex_lock(&(pool->mutex));
+
+		//printf("pid = %u\n", pthread_self());
 
 		while (0 == pool->queuesize && !(pool->shutdown))
 			pthread_cond_wait(&(pool->cond), &(pool->mutex));
@@ -33,6 +36,7 @@ void* threadpool_worker(void* p) {
 	    (*(task->func))(task->arg);
 		free(task);
 	}
+	
 	pool->runningnum--;
 	pthread_exit(NULL);
 }

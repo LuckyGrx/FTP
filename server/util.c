@@ -131,7 +131,7 @@ int read_conf(const char* filename, ftp_conf_t* conf) {
 			conf->threadnum = atoi(delim_pos + 1);
 		// 得到关机模式
 		if (0 == strncmp("shutdown", curr_pos, 8))
-			conf->threadnum = atoi(delim_pos + 1);
+			conf->shutdown = atoi(delim_pos + 1);
 
 		// line_len得到当前行行长
 		line_len = strlen(curr_pos);

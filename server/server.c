@@ -23,6 +23,9 @@ int main (int argc, char* argv[]) {
 	init_connection_t(connection, listenfd, epollfd);
 	ftp_epoll_add(epollfd, listenfd, connection, EPOLLIN | EPOLLET);
 
+
+	printf("conf.threadnum = %d\n", conf.threadnum);
+
 	// 初始化线程池
 	ftp_threadpool_t* pool = threadpool_init(conf.threadnum);
 	//

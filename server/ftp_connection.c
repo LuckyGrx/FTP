@@ -66,7 +66,7 @@ void connection_controller(void* ptr) {
 				break;
 		}
 	}
-	ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
+	//ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 	// 重置定时器
 	time_wheel_add_timer(connection, ftp_connection_close);
 
