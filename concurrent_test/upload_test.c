@@ -130,22 +130,22 @@ void* threadfunc(void* p) {
 	printf("%s\n", file_name);
 	int sockfd = tcp_connect("127.0.0.1", atoi("8080"));
 	request_control_puts(sockfd, file_name);
+	close(file_name);
 }
 
 
 int main(int argc, char** argv) {
-	if (argc != 2)
+	if (argc != 3) {
+		printf("param error\n");
 		return -1;
+	}
 	int pthreadnum = atoi(argv[1]);
 	pthread_t* pidnums = (pthread_t*)calloc(pthreadnum, sizeof(pthread_t));
 	int i;
-	for (i = 0; i < pthreadnum; ++i) {
-		char file_name[15] = "puts.txt";
-		//sprintf(file_name, "%s%d%s", "movie", i + 1, ".mkv");
-		//printf("%s\n", file_name);
+	char file_name[15];
+	strcpy(file_name, argv[2]);
+	for (i = 0; i < pthreadnum; ++i)
 		pthread_create(&(pidnums[i]), NULL, threadfunc, file_name);
-		//sleep(2);
-	}
 
 	for (i = 0; i < pthreadnum; ++i) {
 		pthread_join(pidnums[i], NULL);

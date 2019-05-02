@@ -66,7 +66,7 @@ void connection_controller(void* ptr) {
 				break;
 		}
 	}
-	//ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
+	ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 	// 重置定时器
 	time_wheel_add_timer(connection, ftp_connection_close);
 
@@ -77,12 +77,9 @@ close:
 } 
 
 void ftp_connection_close(ftp_connection_t* connection) {
-	printf("%s\n", __func__);
 	if (NULL == connection)
 		return ;
-	//ftp_epoll_del(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
-
-	printf("333\n");
+	ftp_epoll_del(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
 	close(connection->fd);
 	free(connection->body_pointer);
 	connection->body_pointer = NULL;
