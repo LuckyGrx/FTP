@@ -1,8 +1,10 @@
 #include "epoll.h"
 
-int ftp_epoll_create(struct epoll_event** events) {
+struct epoll_event* events;
+
+int ftp_epoll_create() {
 	int epollfd = epoll_create(1);
-	*events = (struct epoll_event*)calloc(MAX_EVENT_NUMBER, sizeof(struct epoll_event));
+	events = (struct epoll_event*)calloc(MAX_EVENT_NUMBER, sizeof(struct epoll_event));
 	return epollfd;
 }
 

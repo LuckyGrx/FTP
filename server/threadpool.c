@@ -9,16 +9,23 @@ void* threadpool_worker(void* p) {
 		//
 		pthread_mutex_lock(&(pool->mutex));
 
-		//printf("pid = %u\n", pthread_self());
+		printf("pid = %u\n", pthread_self());
 
-		while (0 == pool->queuesize && !(pool->shutdown))
+		while (0 == pool->queuesize && !(pool->shutdown)) {
+			// 先解锁,然后进入阻塞状态,信号来了之后,加上锁,最后返回
 			pthread_cond_wait(&(pool->cond), &(pool->mutex));
+		}
 
 		// 立即停机模式、平滑停机且没有未完成任务则退出
-		if (pool->shutdown == immediate_shutdown)
+		if (pool->shutdown == immediate_shutdown) {
+			// pthread_cond_wait之后,又会加上互斥锁,所以这里必须释放互斥锁
+			pthread_mutex_unlock(&(pool->mutex));
 			break;
-		else if (pool->shutdown == gracefult_shutdown && pool->queuesize == 0)
+		} else if (pool->shutdown == graceful_shutdown && pool->queuesize == 0) {
+			// pthread_cond_wait之后,又会加上互斥锁,所以这里必须释放互斥锁
+			pthread_mutex_unlock(&(pool->mutex));
 			break;
+		}
 	
 		// 得到第一个task
 		task_t* task = pool->head->next;
@@ -32,6 +39,7 @@ void* threadpool_worker(void* p) {
 		pool->head->next = task->next;
 		--(pool->queuesize);
 		pthread_mutex_unlock(&(pool->mutex));
+
 
 	    (*(task->func))(task->arg);
 		free(task);
@@ -122,7 +130,7 @@ int threadpool_destroy(ftp_threadpool_t* pool, int shutdown_model) {
 
 	// 避免两次调用pthreadpool_destroy方法
 	if (pool->shutdown)
-		goto next;
+		return -1;
 
 	pool->shutdown = shutdown_model;
 
@@ -130,12 +138,11 @@ int threadpool_destroy(ftp_threadpool_t* pool, int shutdown_model) {
 
 	for (int i = 0; i < pool->threadnum; ++i) {
 		if (pthread_join(pool->threads[i], NULL) != 0)
-			return -1;
+			continue;
 	}
 
 	pthread_mutex_destroy(&(pool->mutex));
 	pthread_cond_destroy(&(pool->cond));
 	threadpool_free(pool);
-next:
 	return 0;
 }

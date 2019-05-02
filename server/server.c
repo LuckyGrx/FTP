@@ -4,6 +4,7 @@
 #include "threadpool.h"
 #include "time_wheel.h"
 
+extern struct epoll_event *events;
 #define DEFAULT_CONFIG "ftp.conf"
 
 int main (int argc, char* argv[]) {
@@ -16,8 +17,7 @@ int main (int argc, char* argv[]) {
 	int listenfd = tcp_socket_bind_listen(conf.port);
 	int rc = make_socket_non_blocking(listenfd);
 
-	struct epoll_event* events = (struct epoll_event*)calloc(1, sizeof(struct epoll_event)); 
-	int epollfd = ftp_epoll_create(&events);
+	int epollfd = ftp_epoll_create();
 
 	ftp_connection_t* connection = (ftp_connection_t*)calloc(1, sizeof(ftp_connection_t));
 	init_connection_t(connection, listenfd, epollfd);
@@ -32,6 +32,7 @@ int main (int argc, char* argv[]) {
 	//
     alarm(time_wheel.slot_interval);
 
+	
 	for (;;) {
 
 		// 调用epoll_wait函数，返回接收到事件的数量
@@ -40,8 +41,9 @@ int main (int argc, char* argv[]) {
 		// 遍历events数组
         ftp_handle_events(epollfd, listenfd, events, events_num, pool);
 	}
+	
 	// 销毁线程池（平滑停机模式）
-	//threadpool_destroy(&pool, conf.shutdown);
+	threadpool_destroy(pool, conf.shutdown);
 
 	free(events);
 	close(epollfd);

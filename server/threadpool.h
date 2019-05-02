@@ -23,7 +23,7 @@ typedef struct ftp_threadpool {
 
 typedef enum {
 	immediate_shutdown = 1,
-	gracefult_shutdown = 2
+	graceful_shutdown = 2
 }ftp_threadpool_shutdown_t;
 
 ftp_threadpool_t* threadpool_init(int);

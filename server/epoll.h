@@ -7,7 +7,7 @@
 
 #define MAX_EVENT_NUMBER 1024
 
-int ftp_epoll_create(struct epoll_event** events);
+int ftp_epoll_create();
 
 int ftp_epoll_add(int epollfd, int fd, ftp_connection_t* connection, int events);
 

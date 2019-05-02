@@ -41,6 +41,46 @@ int get_file_size(int filefd) {
 	return statbuf.st_size;
 }
 
+int sendfile_by_mmap(int sockfd, int filefd) {
+	int file_size = get_file_size(filefd);
+	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
+	char* p = file_mmap;
+	int one_send_size = ONE_BODY_MAX;
+	int remain = file_size;
+	int ret;
+	request_pkg_head_t pkg_head;
+	while (remain > 0) {
+		bzero(&pkg_head, sizeof(pkg_head));
+		pkg_head.pkg_type = htons(file_content);
+		if (remain < one_send_size)
+			pkg_head.body_len = htons(remain);
+		else
+			pkg_head.body_len = htons(one_send_size);
+		
+		// 发送包头
+		send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
+		// 发送包体
+		if (remain < one_send_size)
+			send(sockfd, file_mmap, remain, 0);
+		else
+			send(sockfd, file_mmap, one_send_size, 0);
+		
+		file_mmap += one_send_size;
+		remain -= one_send_size;
+	}
+
+	ret = munmap(p, file_size);
+	if (-1 == ret) {
+		perror("munmap");
+		return -1;
+	}
+
+	bzero(&pkg_head, sizeof(pkg_head));
+	pkg_head.pkg_type = htons(end_file);
+	// 发送文件结束标志
+	send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
+}
+
 int tcp_connect(const char* ip, int port) {
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (-1 == sockfd) {
@@ -83,54 +123,15 @@ int request_control_puts(int sockfd, char* file_name) {
 	send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
 	send(sockfd, file_name_send, strlen(file_name_send), 0);
 	sendfile_by_mmap(sockfd, filefd);
+	close(filefd);
 }
 
-int sendfile_by_mmap(int sockfd, int filefd) {
-	int file_size = get_file_size(filefd);
-	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
-	char* p = file_mmap;
-	int one_send_size = ONE_BODY_MAX;
-	int remain = file_size;
-	int ret;
-	request_pkg_head_t pkg_head;
-	while (remain > 0) {
-		bzero(&pkg_head, sizeof(pkg_head));
-		pkg_head.pkg_type = htons(file_content);
-		if (remain < one_send_size)
-			pkg_head.body_len = htons(remain);
-		else
-			pkg_head.body_len = htons(one_send_size);
-		
-		// 发送包头
-		send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
-		// 发送包体
-		if (remain < one_send_size)
-			send(sockfd, file_mmap, remain, 0);
-		else
-			send(sockfd, file_mmap, one_send_size, 0);
-		
-		file_mmap += one_send_size;
-		remain -= one_send_size;
-	}
-
-	ret = munmap(p, file_size);
-	if (-1 == ret) {
-		perror("munmap");
-		return -1;
-	}
-
-	bzero(&pkg_head, sizeof(pkg_head));
-	pkg_head.pkg_type = htons(end_file);
-	// 发送文件结束标志
-	send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
-}
 
 void* threadfunc(void* p) {
 	char* file_name = (char*)p;
 	printf("%s\n", file_name);
 	int sockfd = tcp_connect("127.0.0.1", atoi("8080"));
 	request_control_puts(sockfd, file_name);
-	close(file_name);
 }
 
 
