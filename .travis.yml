@@ -1,21 +1,6 @@
+dist: precise
+
 language: c
-	compiler:
-	  - gcc
-	  - clang
-	# Change this to your needs
-	script: ./configure && make
 
-
-after_script:
-$ cd ./src_code/ && make
-gcc -std=gnu99 -c main.c
-gcc -std=gnu99 -c util.c
-gcc -std=gnu99 -c epoll.c
-gcc -std=gnu99 -c http.c
-gcc -std=gnu99 -c http_parse.c
-gcc -std=gnu99 -c http_request.c
-gcc -std=gnu99 -c priority_queue.c
-gcc -std=gnu99 -c rio.c
-gcc -std=gnu99 -c timer.c
-gcc -std=gnu99 -c threadpool.c
-gcc -std=gnu99 *.o -o TKeed -lpthread
+script:
+  - cd ./server/ && make

@@ -132,6 +132,7 @@ void* threadfunc(void* p) {
 	printf("%s\n", file_name);
 	int sockfd = tcp_connect("127.0.0.1", atoi("8080"));
 	request_control_puts(sockfd, file_name);
+
 }
 
 
