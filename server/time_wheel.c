@@ -12,6 +12,12 @@ int time_wheel_init() {
     return 0;
 }
 
+int time_wheel_destroy() {
+    for (int i = 0; i < time_wheel.slot_num; ++i)
+        free(time_wheel.slots[i]);
+	pthread_mutex_destroy(&(time_wheel.mutex));
+}
+
 int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler) {
 	pthread_mutex_lock(&(time_wheel.mutex));
 

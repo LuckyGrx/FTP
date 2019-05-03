@@ -59,7 +59,6 @@ void tcp_accept(int epollfd, int listenfd) {
 		ftp_epoll_add(epollfd, connfd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 
 		time_wheel_add_timer(connection, ftp_connection_close);
-
 	}
 	if (-1 == connfd) {
 		if (errno != EAGAIN) {

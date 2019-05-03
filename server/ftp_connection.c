@@ -7,6 +7,7 @@ void init_connection_t(ftp_connection_t* connection, int fd, int epollfd) {
 	connection->recv_pointer = connection->head;
 	connection->need_recv_len = sizeof(request_pkg_head_t);
 
+	connection->filefd = -1;
 	connection->body_pointer = NULL;
 	connection->timer = NULL;
 }
@@ -81,6 +82,7 @@ void ftp_connection_close(ftp_connection_t* connection) {
 		return ;
 	ftp_epoll_del(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
 	close(connection->fd);
+	close(connection->filefd); // 关闭文件描述符,否则文件描述符不够用
 	free(connection->body_pointer);
 	connection->body_pointer = NULL;
 	free(connection);
@@ -138,7 +140,12 @@ void connection_handler(ftp_connection_t* connection) {
 }
 
 int command_handle_puts(ftp_connection_t* connection) {
-	connection->filefd = open(connection->body_pointer, O_RDWR | O_CREAT, 0666);
+	if (-1 == connection->filefd)
+		connection->filefd = open(connection->body_pointer, O_RDWR | O_CREAT, 0666);
+	else {
+		close(connection->filefd);
+		connection->filefd = open(connection->body_pointer, O_RDWR | O_CREAT, 0666);
+	}
 
 	free(connection->body_pointer);
 	connection->body_pointer = NULL;

@@ -5,11 +5,12 @@ void* threadpool_worker(void* p) {
 		return NULL;
 	ftp_threadpool_t* pool = (ftp_threadpool_t*)p;
 
+	
 	while (1) {
 		//
 		pthread_mutex_lock(&(pool->mutex));
 
-		printf("pid = %u\n", pthread_self());
+		//printf("pid = %u\n", pthread_self());
 
 		while (0 == pool->queuesize && !(pool->shutdown)) {
 			// 先解锁,然后进入阻塞状态,信号来了之后,加上锁,最后返回

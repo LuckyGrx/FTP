@@ -41,12 +41,17 @@ int main (int argc, char* argv[]) {
 		// 遍历events数组
         ftp_handle_events(epollfd, listenfd, events, events_num, pool);
 	}
+		
 	
 	// 销毁线程池（平滑停机模式）
 	threadpool_destroy(pool, conf.shutdown);
+	// 销毁时间轮
+	time_wheel_destroy();
 
+	free(connection);
 	free(events);
 	close(epollfd);
 	close(listenfd);
+	//pthread_cancel(pthread_self());
 	return 0;
 }
