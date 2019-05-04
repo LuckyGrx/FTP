@@ -29,7 +29,7 @@ typedef struct time_wheel {
     int cur_slot;                      // 时间轮的当前槽
     int slot_num;                      // 时间轮上槽的数目
     int slot_interval;                 // 槽间隔时间
-    struct tw_timer* slots[SLOT_NUM];  // 时间轮的槽，其中每个元素指向一个定时器链表，链表无序
+    struct tw_timer* slots[SLOT_NUM];  // 时间轮的槽，其中每个元素指向一个双向定时器链表，链表无序
 
 	pthread_mutex_t mutex;             // 互斥锁
 }time_wheel_t;
