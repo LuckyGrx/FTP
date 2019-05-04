@@ -24,7 +24,7 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler)
     int rotation = 0;     // 计算待插入的定时器在时间轮转动多少圈后被触发
     int slot = 0;         // 距离当前槽相差几个槽
 
-    ticks = DEFAULT_TIMEOUT / time_wheel.slot_interval;
+    ticks = DEFAULT_CONNECTION_TIMEOUT / time_wheel.slot_interval;
     
     rotation = ticks / time_wheel.slot_num;
 
@@ -65,11 +65,6 @@ int time_wheel_del_timer(ftp_connection_t* connection) {
 	pthread_mutex_unlock(&(time_wheel.mutex));
 }
 
-void time_wheel_alarm_handler(int sig) {
-    int ret = time_wheel_tick();
-    alarm(time_wheel.slot_interval);
-}
-
 int time_wheel_tick() {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
@@ -85,7 +80,8 @@ int time_wheel_tick() {
             --(tmp->rotation);
             tmp = tmp->next;
         } else { // 否则，说明定时器已经到期，于是执行定时任务，然后删除该定时器
-            tmp->handler(tmp->connection);
+            //(DEFAULT_CONNECTION_TIMEOUT / time_wheel.slot_interval) * EPOLL_TIMEOUT = 大约50 s
+            tmp->handler(tmp->connection); //  执行定时任务
 
 next:
             if (tmp == time_wheel.slots[time_wheel.cur_slot]) {

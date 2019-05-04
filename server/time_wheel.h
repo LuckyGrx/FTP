@@ -5,7 +5,7 @@
 #include "ftp_connection.h"
 
 #define SLOT_NUM 10
-#define DEFAULT_TIMEOUT 10
+#define DEFAULT_CONNECTION_TIMEOUT 50
 
 
 // 函数指针，负责超时处理， add_timer时指定处理函数
@@ -45,7 +45,5 @@ int time_wheel_del_timer(ftp_connection_t* connection);
 int time_wheel_destroy();
 
 int time_wheel_tick();
-
-void time_wheel_alarm_handler(int sig);
 
 #endif
