@@ -4,3 +4,10 @@ language: c
 
 script:
   - cd ./server/ && make
+
+
+after_success:
+  - ssh your-user@your-ip "./your-shell-script"
+
+addons:
+  ssh_known_hosts: xxxx.xxxx.xxxx.xxxx # 请替换成自己的服务器IP

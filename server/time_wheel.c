@@ -3,9 +3,8 @@
 int time_wheel_init() {
     time_wheel.cur_slot = 0;
     time_wheel.slot_num = SLOT_NUM;
-    time_wheel.slot_interval = 1;
-    int i;
-    for (i = 0; i < time_wheel.slot_num; ++i)
+    time_wheel.slot_interval = 10;
+    for (int i = 0; i < time_wheel.slot_num; ++i)
         time_wheel.slots[i] = NULL;
 
 	pthread_mutex_init(&(time_wheel.mutex), NULL);
@@ -36,13 +35,15 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler)
     timer->slot = slot;
     timer->handler = handler;
     timer->connection = connection;
+    timer->next = NULL;
+    timer->prev = NULL;
+    timer->deleted = 0;
+    //printf("add timer slot = %d\n", timer->slot);
 
     connection->timer = timer; // 之后好进行删除操作
 
     if (time_wheel.slots[slot] == NULL) {
         time_wheel.slots[slot] = timer;
-        timer->next = NULL;
-        timer->prev = NULL;
     } else {//头插法
         timer->next = time_wheel.slots[slot];
         time_wheel.slots[slot]->prev = timer;
@@ -54,30 +55,18 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler)
 }
 
 int time_wheel_del_timer(ftp_connection_t* connection) {
+    if (connection == NULL)
+        return -1;
 	pthread_mutex_lock(&(time_wheel.mutex));
 
     tw_timer_t* timer = (tw_timer_t*)connection->timer;
-
-
-    if (timer != NULL) {
-        if (timer == time_wheel.slots[timer->slot]) {
-            time_wheel.slots[timer->slot] = time_wheel.slots[timer->slot]->next;
-            if (time_wheel.slots[timer->slot])
-                time_wheel.slots[timer->slot]->prev = NULL;
-        } else {
-            timer->prev->next = timer->next;
-            if (timer->next)
-                timer->next->prev = timer->prev;
-        }
-        free(timer);
-    }
+    timer->deleted = 1;
 
 	pthread_mutex_unlock(&(time_wheel.mutex));
 }
 
 void time_wheel_alarm_handler(int sig) {
     int ret = time_wheel_tick();
-
     alarm(time_wheel.slot_interval);
 }
 
@@ -85,14 +74,20 @@ int time_wheel_tick() {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
     tw_timer_t* tmp = time_wheel.slots[time_wheel.cur_slot];
+    printf("time_wheel.cur_slot = %d\n", time_wheel.cur_slot);
 
     while (tmp != NULL) {
+        // 如果已删除,则释放该定时器节点
+        if (tmp->deleted == 1)
+            goto next;
+
         if (tmp->rotation > 0) {
             --(tmp->rotation);
             tmp = tmp->next;
         } else { // 否则，说明定时器已经到期，于是执行定时任务，然后删除该定时器
             tmp->handler(tmp->connection);
 
+next:
             if (tmp == time_wheel.slots[time_wheel.cur_slot]) {
                 time_wheel.slots[time_wheel.cur_slot] = tmp->next;
                 free(tmp);
@@ -113,7 +108,7 @@ int time_wheel_tick() {
             }
         }
     }
-    time_wheel.cur_slot = ++(time_wheel.cur_slot) % time_wheel.slot_num;
+    time_wheel.cur_slot = (++(time_wheel.cur_slot)) % time_wheel.slot_num;
 
 	pthread_mutex_unlock(&(time_wheel.mutex));
 }

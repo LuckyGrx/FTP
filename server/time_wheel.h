@@ -20,6 +20,8 @@ typedef struct tw_timer {
 
     struct tw_timer* next;            // 指向下一个定时器
     struct tw_timer* prev;            // 指向上一个定时器
+
+    int deleted;                      // 标记是否被删除(惰性删除)
 }tw_timer_t;
 
 

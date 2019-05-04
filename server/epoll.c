@@ -4,7 +4,7 @@ struct epoll_event* events;
 
 int ftp_epoll_create() {
 	int epollfd = epoll_create(1);
-	events = (struct epoll_event*)calloc(MAX_EVENT_NUMBER, sizeof(struct epoll_event));
+	events = (struct epoll_event*)malloc(MAX_EVENT_NUMBER * sizeof(struct epoll_event));
 	return epollfd;
 }
 
@@ -49,6 +49,13 @@ void ftp_handle_events(int epollfd, int listenfd, struct epoll_event* events,
 		// 有事件发生的描述符为监听描述符
 			tcp_accept(epollfd, listenfd);
 		} else {
+			// 排除错误事件
+            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)
+                || (!(events[i].events & EPOLLIN))){
+                close(fd);
+                continue;
+            }
+
 		// 有事件发生的描述符为连接描述符
 			if (events[i].events & EPOLLIN)
 				threadpool_add(pool, connection_controller, events[i].data.ptr);

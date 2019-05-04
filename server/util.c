@@ -230,3 +230,12 @@ int ftp_daemon() {
 
 	return 1;
 }
+
+void handle_for_sigpipe() {
+    struct sigaction siga;
+	bzero(&siga, sizeof(siga));
+    siga.sa_handler = SIG_IGN;
+    siga.sa_flags = 0;
+    if(sigaction(SIGPIPE, &siga, NULL))
+        return;
+}

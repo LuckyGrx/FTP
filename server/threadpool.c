@@ -4,7 +4,6 @@ void* threadpool_worker(void* p) {
 	if (NULL == p)
 		return NULL;
 	ftp_threadpool_t* pool = (ftp_threadpool_t*)p;
-
 	
 	while (1) {
 		//
@@ -46,7 +45,6 @@ void* threadpool_worker(void* p) {
 		free(task);
 	}
 	
-	pool->runningnum--;
 	pthread_exit(NULL);
 }
 
@@ -65,7 +63,6 @@ ftp_threadpool_t* threadpool_init(int threadnum){
 	pool->threadnum = 0;
 	pool->queuesize = 0;
 	pool->shutdown = 0;
-	pool->runningnum = 0;
 
 	int i;
 	for(i = 0; i < threadnum; ++i) {
@@ -74,13 +71,12 @@ ftp_threadpool_t* threadpool_init(int threadnum){
 			return NULL;
 		}
 		pool->threadnum++;
-		pool->runningnum++;
 	}
+	
 	return pool;
 
 err:
-	if (pool)
-		threadpool_free(pool);
+	threadpool_free(pool);
 	return NULL;
 }
 
@@ -109,10 +105,10 @@ err:
 }
 
 int threadpool_free(ftp_threadpool_t* pool) {
-	if (NULL == pool || pool->runningnum > 0)
+	if (NULL == pool)
 		return -1;
-	if (pool->threads)
-		free(pool->threads);
+
+	free(pool->threads);
 
 	task_t* task;
 	while (pool->head->next) {
@@ -129,17 +125,12 @@ int threadpool_destroy(ftp_threadpool_t* pool, int shutdown_model) {
 	if (NULL == pool)
 		return -1;
 
-	// 避免两次调用pthreadpool_destroy方法
-	if (pool->shutdown)
-		return -1;
-
 	pool->shutdown = shutdown_model;
 
 	pthread_cond_broadcast(&(pool->cond));
 
 	for (int i = 0; i < pool->threadnum; ++i) {
-		if (pthread_join(pool->threads[i], NULL) != 0)
-			continue;
+		pthread_join(pool->threads[i], NULL); 
 	}
 
 	pthread_mutex_destroy(&(pool->mutex));

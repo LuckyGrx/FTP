@@ -1,8 +1,6 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-//#include "ftp_timer.h"
-
 #define LISTENQ 1024
 
 #define DELIM "="
@@ -32,7 +30,8 @@ int get_file_size(int filefd);
 
 int sendfile_by_mmap(int sockfd, int filefd);
 
-
 int ftp_daemon();
+
+void handle_for_sigpipe();
 
 #endif

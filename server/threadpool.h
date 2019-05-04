@@ -18,7 +18,6 @@ typedef struct ftp_threadpool {
 	int queuesize;          // 任务链表长度(不含头节点)
 
 	int shutdown;           // 关机模式（平滑关闭、立即关闭)
-	int runningnum;         // 正在运行的工作线程数量
 }ftp_threadpool_t;
 
 typedef enum {
