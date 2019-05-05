@@ -58,7 +58,7 @@ void tcp_accept(int epollfd, int listenfd) {
 		// 文件描述符可以读，边缘触发(Edge Triggered)模式，保证一个socket连接在任一时刻只被一个线程处理
 		ftp_epoll_add(epollfd, connfd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 
-		time_wheel_add_timer(connection, ftp_connection_close);
+		time_wheel_add_timer(connection, ftp_connection_close, time_wheel.slot_interval * 20);
 	}
 	if (-1 == connfd) {
 		if (errno != EAGAIN) {

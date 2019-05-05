@@ -7,7 +7,6 @@
 #include "time_wheel.h"
 
 #define MAX_EVENT_NUMBER 1024
-#define EPOLL_TIMEOUT 10000  //毫秒,ms
 
 int ftp_epoll_create();
 

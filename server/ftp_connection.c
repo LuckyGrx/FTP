@@ -1,4 +1,5 @@
 #include "ftp_connection.h"
+#include "time_wheel.h"
 
 void init_connection_t(ftp_connection_t* connection, int fd, int epollfd) {
 	connection->epollfd = epollfd;
@@ -15,14 +16,14 @@ void init_connection_t(ftp_connection_t* connection, int fd, int epollfd) {
 void connection_controller(void* ptr) {
 	ftp_connection_t* connection = (ftp_connection_t*)ptr;
 
-	// 删除定时器
+	// 删除定时器(惰性删除)
 	time_wheel_del_timer(connection);
 
 	while (1) {
 		int reco = recv(connection->fd, connection->recv_pointer, connection->need_recv_len, 0);
 		if (0 == reco)
 			goto close;
-		if (reco < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) 
+		if (reco < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) 
 			break;
 		else if (reco < 0)
 			goto close;
@@ -68,8 +69,8 @@ void connection_controller(void* ptr) {
 		}
 	}
 	ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
-	// 重置定时器
-	time_wheel_add_timer(connection, ftp_connection_close);
+	// 添加定时器
+	time_wheel_add_timer(connection, ftp_connection_close, time_wheel.slot_interval * 10);
 
 	return ;
 

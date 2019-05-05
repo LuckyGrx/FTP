@@ -3,7 +3,7 @@
 int time_wheel_init() {
     time_wheel.cur_slot = 0;
     time_wheel.slot_num = SLOT_NUM;
-    time_wheel.slot_interval = 10;
+    time_wheel.slot_interval = 1;
     for (int i = 0; i < time_wheel.slot_num; ++i)
         time_wheel.slots[i] = NULL;
 
@@ -17,14 +17,17 @@ int time_wheel_destroy() {
 	pthread_mutex_destroy(&(time_wheel.mutex));
 }
 
-int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler) {
+int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler, int timeout) {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
     int ticks = 0;        // 转动几个槽触发
     int rotation = 0;     // 计算待插入的定时器在时间轮转动多少圈后被触发
     int slot = 0;         // 距离当前槽相差几个槽
 
-    ticks = DEFAULT_CONNECTION_TIMEOUT / time_wheel.slot_interval;
+    ticks = timeout / time_wheel.slot_interval;
+
+    if (0 == ticks)
+        ticks = 1;
     
     rotation = ticks / time_wheel.slot_num;
 
@@ -38,7 +41,6 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler)
     timer->next = NULL;
     timer->prev = NULL;
     timer->deleted = 0;
-    //printf("add timer slot = %d\n", timer->slot);
 
     connection->timer = timer; // 之后好进行删除操作
 

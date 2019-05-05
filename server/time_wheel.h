@@ -5,8 +5,6 @@
 #include "ftp_connection.h"
 
 #define SLOT_NUM 10
-#define DEFAULT_CONNECTION_TIMEOUT 50
-
 
 // 函数指针，负责超时处理， add_timer时指定处理函数
 typedef int (*timer_handler_pt)(ftp_connection_t* request);
@@ -24,7 +22,6 @@ typedef struct tw_timer {
     int deleted;                      // 标记是否被删除(惰性删除)
 }tw_timer_t;
 
-
 typedef struct time_wheel {
     int cur_slot;                      // 时间轮的当前槽
     int slot_num;                      // 时间轮上槽的数目
@@ -38,7 +35,7 @@ time_wheel_t time_wheel;
 
 int time_wheel_init();
 
-int time_wheel_add_timer(ftp_connection_t* connnection, timer_handler_pt handler);
+int time_wheel_add_timer(ftp_connection_t* connnection, timer_handler_pt handler, int timeout);
 
 int time_wheel_del_timer(ftp_connection_t* connection);
 

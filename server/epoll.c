@@ -36,7 +36,7 @@ int ftp_epoll_del(int epollfd, int fd, ftp_connection_t* connection, int events)
 }
 
 int ftp_epoll_wait(int epollfd, struct epoll_event *events, int max_events_num) {
-	int timeout = EPOLL_TIMEOUT;
+	int timeout = time_wheel.slot_interval * 1000; // 每一秒超时一次
 
 	time_t start, end;
 begin:
@@ -45,14 +45,14 @@ begin:
 	int events_num = epoll_wait(epollfd, events, max_events_num, timeout);
 
 	if (events_num == 0) {// 说明超时时间到,处理定时任务
-		timeout = EPOLL_TIMEOUT;
+		timeout = time_wheel.slot_interval * 1000;
 		time_wheel_tick();
 		goto begin;
 	} else {// 说明有事件发生
 		end = time(NULL);
 		timeout -= (end - start) * 1000;
 		if (timeout == 0) {// 说明在有事件发生时,刚好超时时间到
-			timeout = EPOLL_TIMEOUT;
+			timeout = time_wheel.slot_interval * 1000;
 			time_wheel_tick();
 		}
 	}
