@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <errno.h>
 #include <sys/stat.h>
 #define ONE_BODY_MAX 1024
 
@@ -45,6 +46,23 @@ int get_file_size(int filefd) {
 	return statbuf.st_size;
 }
 
+int sendn(int sockfd, char* buf, int len) {
+	int total = 0;
+	int ret;
+	while (total < len) {
+		ret = send(sockfd, buf + total, len - total, 0);
+		if (ret < 0) {
+			if (errno == EAGAIN)
+				continue;
+		} else if (ret == 0) {
+			close(sockfd);
+			return 0;
+		} else
+			total = total + ret;
+	}
+	return total;
+}
+
 int sendfile_by_mmap(int sockfd, int filefd) {
 	int file_size = get_file_size(filefd);
 	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
@@ -62,12 +80,12 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 			pkg_head.body_len = htons(one_send_size);
 		
 		// 发送包头
-		send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
+		sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 		// 发送包体
 		if (remain < one_send_size)
-			send(sockfd, file_mmap, remain, 0);
+			sendn(sockfd, file_mmap, remain);
 		else
-			send(sockfd, file_mmap, one_send_size, 0);
+			sendn(sockfd, file_mmap, one_send_size);
 		
 		file_mmap += one_send_size;
 		remain -= one_send_size;
@@ -82,10 +100,10 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 	bzero(&pkg_head, sizeof(pkg_head));
 	pkg_head.pkg_type = htons(end_file);
 	// 发送文件结束标志
-	send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
+	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
 }
 
-int request_control_puts(int sockfd, char* file_name) {
+int client2server(int sockfd, char* file_name) {
 	static int file_index = 1;
 	request_pkg_head_t pkg_head;
 	bzero(&pkg_head, sizeof(pkg_head));
@@ -104,8 +122,8 @@ int request_control_puts(int sockfd, char* file_name) {
 		return -1;
 	}
 
-	send(sockfd, (char*)&pkg_head, sizeof(pkg_head), 0);
-	send(sockfd, file_name_send, strlen(file_name_send), 0);
+	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
+	sendn(sockfd, file_name_send, strlen(file_name_send));
 	sendfile_by_mmap(sockfd, filefd);
 	close(filefd);
 }
@@ -119,7 +137,7 @@ int response_control_puts(response_pkg_head_t* response_pkg_head) {
 		printf("上传失败\n");
 }
 
-int response_control(int sockfd) {
+int server2client(int sockfd) {
 	response_pkg_head_t response_pkg_head;
 	bzero(&response_pkg_head, sizeof(response_pkg_head));
 	recv(sockfd, (char*)&response_pkg_head, sizeof(response_pkg_head_t), 0);
@@ -145,7 +163,7 @@ int setnonblocking(int fd) {
 void addfd(int epoll_fd, int fd) {
     struct epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLOUT | EPOLLET | EPOLLERR;
+    event.events = EPOLLOUT | EPOLLET;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &event);
     setnonblocking(fd);
 }
@@ -190,24 +208,22 @@ int main(int argc, char* argv[]) {
 
             if (events[i].events & EPOLLIN) {
 
-                response_control(sockfd);
+                server2client(sockfd);
 
                 struct epoll_event event;
-                event.events = EPOLLOUT | EPOLLET | EPOLLERR;
+                event.events = EPOLLOUT | EPOLLET;
                 event.data.fd = sockfd;
                 epoll_ctl(epoll_fd, EPOLL_CTL_MOD, sockfd, &event);
 
             } else if (events[i].events & EPOLLOUT) {
 
-                request_control_puts(sockfd, argv[4]);
+                client2server(sockfd, argv[4]);
 
                 struct epoll_event event;
-                event.events = EPOLLIN | EPOLLET | EPOLLERR;
+                event.events = EPOLLIN | EPOLLET;
                 event.data.fd = sockfd;
                 epoll_ctl(epoll_fd, EPOLL_CTL_MOD, sockfd, &event);
-            } else if (events[i].events & EPOLLERR) {
-                close_conn(epoll_fd, sockfd);
-            }
+			}
         }
     }
     return 0;

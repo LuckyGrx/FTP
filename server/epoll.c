@@ -35,24 +35,22 @@ int ftp_epoll_del(int epollfd, int fd, ftp_connection_t* connection, int events)
 	return ret;
 }
 
-int ftp_epoll_wait(int epollfd, struct epoll_event *events, int max_events_num) {
-	int timeout = time_wheel.slot_interval * 1000; // 每一秒超时一次
-
+int ftp_epoll_wait(int epollfd, struct epoll_event *events, int max_events_num, int* timeout) {
 	time_t start, end;
 begin:
 	start = time(NULL);//返回距离1970的秒数
 
-	int events_num = epoll_wait(epollfd, events, max_events_num, timeout);
+	int events_num = epoll_wait(epollfd, events, max_events_num, *timeout);
 
 	if (events_num == 0) {// 说明超时时间到,处理定时任务
-		timeout = time_wheel.slot_interval * 1000;
+		*timeout = time_wheel.slot_interval * 1000;
 		time_wheel_tick();
 		goto begin;
 	} else {// 说明有事件发生
 		end = time(NULL);
-		timeout -= (end - start) * 1000;
-		if (timeout == 0) {// 说明在有事件发生时,刚好超时时间到
-			timeout = time_wheel.slot_interval * 1000;
+		*timeout -= (end - start) * 1000;
+		if (timeout <= 0) {// 说明在有事件发生时,超时时间到(存在小于0的情况)
+			*timeout = time_wheel.slot_interval * 1000;
 			time_wheel_tick();
 		}
 	}
@@ -68,14 +66,6 @@ void ftp_handle_events(int epollfd, int listenfd, struct epoll_event* events,
 		// 有事件发生的描述符为监听描述符
 			tcp_accept(epollfd, listenfd);
 		} else {
-			/*
-			// 排除错误事件
-            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)
-                || (!(events[i].events & EPOLLIN))){
-                close(fd);
-                continue;
-            }
-			*/
 
 		// 有事件发生的描述符为连接描述符
 			if (events[i].events & EPOLLIN)

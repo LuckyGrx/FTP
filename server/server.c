@@ -30,12 +30,12 @@ int main (int argc, char* argv[]) {
 
 	// 初始化时间轮
 	time_wheel_init();
-	//
-
+	// epoll_wait 超时时间
+	int timeout = time_wheel.slot_interval * 1000; // 每一秒超时一次
 	for (;;) {
 
 		// 调用epoll_wait函数，返回接收到事件的数量
-        int events_num = ftp_epoll_wait(epollfd, events, MAX_EVENT_NUMBER);
+        int events_num = ftp_epoll_wait(epollfd, events, MAX_EVENT_NUMBER, &timeout);
 
 		// 遍历events数组
         ftp_handle_events(epollfd, listenfd, events, events_num, pool);
