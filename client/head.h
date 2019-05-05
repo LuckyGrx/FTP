@@ -20,7 +20,6 @@
 #include <time.h>
 #include <shadow.h>
 #include <crypt.h>
-#include <mysql/mysql.h>
 #include <netinet/tcp.h>
 
 #define ONE_BODY_MAX 1024

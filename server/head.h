@@ -18,7 +18,6 @@
 #include <sys/epoll.h>
 #include <dirent.h>
 #include <errno.h>
-#include <mysql/mysql.h>
 #include <sys/mman.h>
 
 

@@ -51,9 +51,14 @@ int sendn(int sockfd, char* buf, int len) {
 	int ret;
 	while (total < len) {
 		ret = send(sockfd, buf + total, len - total, 0);
+		//printf("ret = %d\n", ret);
 		if (ret < 0) {
 			if (errno == EAGAIN)
 				continue;
+			else {
+				printf("errno = %d\n", errno);
+				exit(1);
+			}
 		} else if (ret == 0) {
 			close(sockfd);
 			return 0;
@@ -63,6 +68,27 @@ int sendn(int sockfd, char* buf, int len) {
 	return total;
 }
 
+int recvn(int sockfd, char* buf, int len) {
+	int total = 0;
+	int ret;
+	while (total < len) {
+		ret = recv(sockfd, buf + total, len - total, 0);
+		if (ret < 0) {
+			if (errno == EAGAIN)
+				continue;
+			else {
+				printf("errno = %d\n", errno);
+				exit(1);
+			}
+		} else if (ret == 0) {
+			close(sockfd);
+			exit(1);
+			return 0;
+		} else
+			total = total + ret;
+	}
+	return total;
+}
 int sendfile_by_mmap(int sockfd, int filefd) {
 	int file_size = get_file_size(filefd);
 	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
@@ -128,24 +154,24 @@ int client2server(int sockfd, char* file_name) {
 	close(filefd);
 }
 
-int response_control_puts(response_pkg_head_t* response_pkg_head) {
+int response_control_puts(response_pkg_head_t* response_pkg_head, int sockfd) {
 	printf("%s\n", __func__);
 	unsigned short handle_result = ntohs(response_pkg_head->handle_result);
 	if (handle_result == response_success)
-		printf("上传成功\n");
+		printf("%d: 上传成功\n", sockfd);
 	else if (handle_result == response_failed)
-		printf("上传失败\n");
+		printf("%d: 上传失败\n", sockfd);
 }
 
 int server2client(int sockfd) {
 	response_pkg_head_t response_pkg_head;
 	bzero(&response_pkg_head, sizeof(response_pkg_head));
-	recv(sockfd, (char*)&response_pkg_head, sizeof(response_pkg_head_t), 0);
+	recvn(sockfd, (char*)&response_pkg_head, sizeof(response_pkg_head_t));
 	unsigned short command_type = ntohs(response_pkg_head.pkg_type);
 
 	switch (command_type) {
 		case command_puts:
-			response_control_puts(&response_pkg_head);
+			response_control_puts(&response_pkg_head, sockfd);
 			break;
 		default:
 			break;
@@ -163,7 +189,7 @@ int setnonblocking(int fd) {
 void addfd(int epoll_fd, int fd) {
     struct epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLOUT | EPOLLET;
+    event.events = EPOLLOUT | EPOLLET | EPOLLERR;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &event);
     setnonblocking(fd);
 }
@@ -179,7 +205,7 @@ void start_conn(int epoll_fd, int num, const char* ip, int port) {
 
     for (int i = 0; i < num; ++i) {
         int sockfd = socket(PF_INET, SOCK_STREAM, 0);
-        printf("create 1 sock\n");
+		printf("sockfd = %d\n", sockfd);
         if (sockfd < 0)
             continue;
         if (connect(sockfd, (struct sockaddr*)&address, sizeof(address)) == 0) {
@@ -187,6 +213,7 @@ void start_conn(int epoll_fd, int num, const char* ip, int port) {
             addfd(epoll_fd, sockfd);
         }
     }
+	//exit(1);
 }
 
 void close_conn(int epoll_fd, int sockfd) {
@@ -202,16 +229,18 @@ int main(int argc, char* argv[]) {
     struct epoll_event events[10000];
 
     while (1) {
-        int fds = epoll_wait(epoll_fd, events, 10000, -1);
+        int fds = epoll_wait(epoll_fd, events, 10000, 60000);//测试60s内的结果
         for (int i = 0; i < fds; i++) {
-            int sockfd = events[1].data.fd;
+            int sockfd = events[i].data.fd;
+
+			printf("sockfd = %d\n", sockfd);
 
             if (events[i].events & EPOLLIN) {
 
                 server2client(sockfd);
 
                 struct epoll_event event;
-                event.events = EPOLLOUT | EPOLLET;
+                event.events = EPOLLOUT | EPOLLET | EPOLLERR;
                 event.data.fd = sockfd;
                 epoll_ctl(epoll_fd, EPOLL_CTL_MOD, sockfd, &event);
 
@@ -220,11 +249,17 @@ int main(int argc, char* argv[]) {
                 client2server(sockfd, argv[4]);
 
                 struct epoll_event event;
-                event.events = EPOLLIN | EPOLLET;
+                event.events = EPOLLIN | EPOLLET | EPOLLERR;
                 event.data.fd = sockfd;
                 epoll_ctl(epoll_fd, EPOLL_CTL_MOD, sockfd, &event);
+			} else if (events[i].events & EPOLLERR) {
+				close_conn(epoll_fd, sockfd);
 			}
         }
+		if (fds == 0) {
+			printf("hhh\n");
+			break;
+		}
     }
     return 0;
 }

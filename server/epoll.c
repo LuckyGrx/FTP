@@ -49,7 +49,7 @@ begin:
 	} else {// 说明有事件发生
 		end = time(NULL);
 		*timeout -= (end - start) * 1000;
-		if (timeout <= 0) {// 说明在有事件发生时,超时时间到(存在小于0的情况)
+		if (*timeout <= 0) {// 说明在有事件发生时,超时时间到(存在小于0的情况)
 			*timeout = time_wheel.slot_interval * 1000;
 			time_wheel_tick();
 		}
