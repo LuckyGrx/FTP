@@ -84,8 +84,8 @@ void ftp_connection_close(ftp_connection_t* connection) {
 	ftp_epoll_del(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
 	close(connection->fd);
 	close(connection->filefd); // 关闭文件描述符,否则文件描述符不够用
-	free(connection->body_pointer);
-	connection->body_pointer = NULL;
+	//free(connection->body_pointer);
+	//connection->body_pointer = NULL;
 	free(connection);
 	connection = NULL;
 }

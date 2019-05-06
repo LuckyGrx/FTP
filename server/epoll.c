@@ -43,14 +43,14 @@ begin:
 	int events_num = epoll_wait(epollfd, events, max_events_num, *timeout);
 
 	if (events_num == 0) {// 说明超时时间到,处理定时任务
-		*timeout = time_wheel.slot_interval * 1000;
+		*timeout = time_wheel.slot_interval * 1000 * 10;
 		time_wheel_tick();
 		goto begin;
 	} else {// 说明有事件发生
 		end = time(NULL);
 		*timeout -= (end - start) * 1000;
 		if (*timeout <= 0) {// 说明在有事件发生时,超时时间到(存在小于0的情况)
-			*timeout = time_wheel.slot_interval * 1000;
+			*timeout = time_wheel.slot_interval * 1000 * 10;
 			time_wheel_tick();
 		}
 	}

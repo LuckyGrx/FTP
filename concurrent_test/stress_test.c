@@ -12,7 +12,12 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <time.h>
 #define ONE_BODY_MAX 1024
+
+
+long long all_request = 0;
+long long all_response = 0;
 
 #pragma pack(1)
 typedef struct request_pkg_head {
@@ -51,13 +56,12 @@ int sendn(int sockfd, char* buf, int len) {
 	int ret;
 	while (total < len) {
 		ret = send(sockfd, buf + total, len - total, 0);
-		//printf("ret = %d\n", ret);
 		if (ret < 0) {
 			if (errno == EAGAIN)
 				continue;
 			else {
-				printf("errno = %d\n", errno);
-				exit(1);
+				printf("sendn errno = %d\n", errno);
+				break;
 			}
 		} else if (ret == 0) {
 			close(sockfd);
@@ -74,15 +78,15 @@ int recvn(int sockfd, char* buf, int len) {
 	while (total < len) {
 		ret = recv(sockfd, buf + total, len - total, 0);
 		if (ret < 0) {
-			if (errno == EAGAIN)
+			if (errno == EAGAIN) {
+				printf("hhh\n");
 				continue;
-			else {
-				printf("errno = %d\n", errno);
-				exit(1);
+			} else {
+				printf("recvn errno = %d\n", errno);
+				break;
 			}
 		} else if (ret == 0) {
 			close(sockfd);
-			exit(1);
 			return 0;
 		} else
 			total = total + ret;
@@ -127,6 +131,7 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 	pkg_head.pkg_type = htons(end_file);
 	// 发送文件结束标志
 	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
+	++all_request;
 }
 
 int client2server(int sockfd, char* file_name) {
@@ -161,6 +166,7 @@ int response_control_puts(response_pkg_head_t* response_pkg_head, int sockfd) {
 		printf("%d: 上传成功\n", sockfd);
 	else if (handle_result == response_failed)
 		printf("%d: 上传失败\n", sockfd);
+	++all_response;
 }
 
 int server2client(int sockfd) {
@@ -203,6 +209,7 @@ void start_conn(int epoll_fd, int num, const char* ip, int port) {
     inet_pton(AF_INET, ip, &address.sin_addr);
     address.sin_port = htons(port);
 
+
     for (int i = 0; i < num; ++i) {
         int sockfd = socket(PF_INET, SOCK_STREAM, 0);
 		printf("sockfd = %d\n", sockfd);
@@ -213,7 +220,6 @@ void start_conn(int epoll_fd, int num, const char* ip, int port) {
             addfd(epoll_fd, sockfd);
         }
     }
-	//exit(1);
 }
 
 void close_conn(int epoll_fd, int sockfd) {
@@ -228,8 +234,15 @@ int main(int argc, char* argv[]) {
     start_conn(epoll_fd, atoi(argv[3]), argv[1], atoi(argv[2]));
     struct epoll_event events[10000];
 
+
+	time_t start = time(NULL), end;
     while (1) {
-        int fds = epoll_wait(epoll_fd, events, 10000, 60000);//测试60s内的结果
+		end = time(NULL);
+		if (end - start > 60) {//测试60s内的结果
+			printf("request = %lld, response = %lld, failed = %lld\n", all_request, all_response, all_request - all_response);
+			break;
+		}
+        int fds = epoll_wait(epoll_fd, events, 10000, -1);
         for (int i = 0; i < fds; i++) {
             int sockfd = events[i].data.fd;
 
@@ -256,10 +269,8 @@ int main(int argc, char* argv[]) {
 				close_conn(epoll_fd, sockfd);
 			}
         }
-		if (fds == 0) {
-			printf("hhh\n");
-			break;
-		}
     }
+
+
     return 0;
 }

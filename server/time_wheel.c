@@ -62,7 +62,20 @@ int time_wheel_del_timer(ftp_connection_t* connection) {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
     tw_timer_t* timer = (tw_timer_t*)connection->timer;
-    timer->deleted = 1;
+    //timer->deleted = 1;
+
+    if (timer != NULL) {	
+        if (timer == time_wheel.slots[timer->slot]) {	
+            time_wheel.slots[timer->slot] = timer->next;	
+            if (time_wheel.slots[timer->slot])	
+                time_wheel.slots[timer->slot]->prev = NULL;	
+        } else {	
+            timer->prev->next = timer->next;	
+            if (timer->next)	
+                timer->next->prev = timer->prev;	
+        }	
+        free(timer);	
+    }
 
 	pthread_mutex_unlock(&(time_wheel.mutex));
 }
@@ -71,13 +84,13 @@ int time_wheel_tick() {
 	pthread_mutex_lock(&(time_wheel.mutex));
 
     tw_timer_t* tmp = time_wheel.slots[time_wheel.cur_slot];
-    printf("time_wheel.cur_slot = %d\n", time_wheel.cur_slot);
 
     while (tmp != NULL) {
         // 如果已删除,则释放该定时器节点
-        if (tmp->deleted == 1)
-            goto next;
+        //if (tmp->deleted == 1)
+        //    goto next;
 
+        printf("time_wheel.cur_slot = %d\n", time_wheel.cur_slot);
         if (tmp->rotation > 0) {
             --(tmp->rotation);
             tmp = tmp->next;
@@ -85,7 +98,8 @@ int time_wheel_tick() {
             //(DEFAULT_CONNECTION_TIMEOUT / time_wheel.slot_interval) * EPOLL_TIMEOUT = 大约50 s
             tmp->handler(tmp->connection); //  执行定时任务
 
-next:
+            printf("time_wheel.cur_slot = %d\n", time_wheel.cur_slot);
+//next:
             if (tmp == time_wheel.slots[time_wheel.cur_slot]) {
                 time_wheel.slots[time_wheel.cur_slot] = tmp->next;
                 free(tmp);
