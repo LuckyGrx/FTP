@@ -43,14 +43,14 @@ begin:
 	int events_num = epoll_wait(epollfd, events, max_events_num, *timeout);
 
 	if (events_num == 0) {// 说明超时时间到,处理定时任务
-		*timeout = time_wheel.slot_interval * 1000 * 10;
+		*timeout = tw.slot_interval * 1000 * 10;
 		time_wheel_tick();
 		goto begin;
 	} else {// 说明有事件发生
 		end = time(NULL);
 		*timeout -= (end - start) * 1000;
 		if (*timeout <= 0) {// 说明在有事件发生时,超时时间到(存在小于0的情况)
-			*timeout = time_wheel.slot_interval * 1000 * 10;
+			*timeout = tw.slot_interval * 1000 * 10;
 			time_wheel_tick();
 		}
 	}
@@ -67,7 +67,7 @@ void ftp_handle_events(int epollfd, int listenfd, struct epoll_event* events,
 			tcp_accept(epollfd, listenfd);
 		} else {
 
-		// 有事件发生的描述符为连接描述符
+		// 有事件发生的描述符为已连接描述符
 			if (events[i].events & EPOLLIN)
 				threadpool_add(pool, connection_controller, events[i].data.ptr);
 		}

@@ -16,7 +16,7 @@ void init_connection_t(ftp_connection_t* connection, int fd, int epollfd) {
 void connection_controller(void* ptr) {
 	ftp_connection_t* connection = (ftp_connection_t*)ptr;
 
-	// 删除定时器(惰性删除)
+	// 删除定时器
 	time_wheel_del_timer(connection);
 
 	while (1) {
@@ -68,9 +68,10 @@ void connection_controller(void* ptr) {
 				break;
 		}
 	}
-	ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 	// 添加定时器
-	time_wheel_add_timer(connection, ftp_connection_close, time_wheel.slot_interval * 10);
+	time_wheel_add_timer(connection, ftp_connection_close, tw.slot_interval * 10);
+
+	ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 
 	return ;
 
@@ -84,8 +85,6 @@ void ftp_connection_close(ftp_connection_t* connection) {
 	ftp_epoll_del(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT);// 待处理
 	close(connection->fd);
 	close(connection->filefd); // 关闭文件描述符,否则文件描述符不够用
-	//free(connection->body_pointer);
-	//connection->body_pointer = NULL;
 	free(connection);
 	connection = NULL;
 }
