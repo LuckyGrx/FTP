@@ -42,9 +42,6 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler,
     timer->prev = NULL;
     timer->deleted = 0;
 
-
-    printf("timer->slot = %d\n", timer->slot);
-
     connection->timer = timer; // 之后好进行删除操作
 
     if (tw.slots[slot] == NULL) {
@@ -89,10 +86,6 @@ int time_wheel_tick() {
     tw_timer_t* tmp = tw.slots[tw.cur_slot];
 
     while (tmp != NULL) {
-        // 如果已删除,则释放该定时器节点
-        //if (tmp->deleted == 1)
-        //    goto next;
-
         //printf("time_wheel.cur_slot = %d\n", time_wheel.cur_slot);
         if (tmp->rotation > 0) {
             --(tmp->rotation);
@@ -101,7 +94,6 @@ int time_wheel_tick() {
             //(DEFAULT_CONNECTION_TIMEOUT / time_wheel.slot_interval) * EPOLL_TIMEOUT = 大约50 s
             tmp->handler(tmp->connection); //  执行定时任务
 
-//next:
             if (tmp == tw.slots[tw.cur_slot]) {
                 tw.slots[tw.cur_slot] = tmp->next;
                 free(tmp);

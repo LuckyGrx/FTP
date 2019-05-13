@@ -13,11 +13,8 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <signal.h>
 #define ONE_BODY_MAX 1024
-
-
-long long all_request = 0;
-long long all_response = 0;
 
 #pragma pack(1)
 typedef struct request_pkg_head {
@@ -93,6 +90,13 @@ int recvn(int sockfd, char* buf, int len) {
 	}
 	return total;
 }
+
+void handle_for_sigpipe() {
+    struct sigaction act;
+    act.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &act, NULL);
+}
+
 int sendfile_by_mmap(int sockfd, int filefd) {
 	int file_size = get_file_size(filefd);
 	char* file_mmap=(char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, filefd, 0);
@@ -131,18 +135,16 @@ int sendfile_by_mmap(int sockfd, int filefd) {
 	pkg_head.pkg_type = htons(end_file);
 	// 发送文件结束标志
 	sendn(sockfd, (char*)&pkg_head, sizeof(pkg_head));
-	++all_request;
 }
 
 int client2server(int sockfd, char* file_name) {
-	static int file_index = 1;
 	request_pkg_head_t pkg_head;
 	bzero(&pkg_head, sizeof(pkg_head));
 
 	char file_name_send[15];
 	strcpy(file_name_send, file_name);
 
-	sprintf(file_name_send, "%s%d", file_name, file_index++);
+	sprintf(file_name_send, "%s%d", file_name, sockfd);
 	printf("%s\n", file_name_send);
 
 	pkg_head.pkg_type = htons(command_puts);
@@ -166,7 +168,6 @@ int response_control_puts(response_pkg_head_t* response_pkg_head, int sockfd) {
 		printf("%d: 上传成功\n", sockfd);
 	else if (handle_result == response_failed)
 		printf("%d: 上传失败\n", sockfd);
-	++all_response;
 }
 
 int server2client(int sockfd) {
@@ -212,13 +213,13 @@ void start_conn(int epoll_fd, int num, const char* ip, int port) {
 
     for (int i = 0; i < num; ++i) {
         int sockfd = socket(PF_INET, SOCK_STREAM, 0);
-		printf("sockfd = %d\n", sockfd);
         if (sockfd < 0)
             continue;
+		printf("sockfd = %d\n", sockfd);
         if (connect(sockfd, (struct sockaddr*)&address, sizeof(address)) == 0) {
             printf("build connection %d\n", i);
             addfd(epoll_fd, sockfd);
-        }
+        } 
     }
 }
 
@@ -230,18 +231,12 @@ void close_conn(int epoll_fd, int sockfd) {
 
 int main(int argc, char* argv[]) {
     assert(argc == 5);
+	handle_for_sigpipe();
     int epoll_fd = epoll_create(1);
     start_conn(epoll_fd, atoi(argv[3]), argv[1], atoi(argv[2]));
     struct epoll_event events[10000];
 
-
-	time_t start = time(NULL), end;
     while (1) {
-		end = time(NULL);
-		if (end - start > 60) {//测试60s内的结果
-			printf("request = %lld, response = %lld, failed = %lld\n", all_request, all_response, all_request - all_response);
-			break;
-		}
         int fds = epoll_wait(epoll_fd, events, 10000, -1);
         for (int i = 0; i < fds; i++) {
             int sockfd = events[i].data.fd;

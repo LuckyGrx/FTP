@@ -78,4 +78,6 @@ int command_handle_end_file(ftp_connection_t* connection);
 
 void ftp_connection_close(ftp_connection_t* connection);
 
+void ftp_connection_shutdown(ftp_connection_t* connection);
+
 #endif

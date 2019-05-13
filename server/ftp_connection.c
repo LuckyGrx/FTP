@@ -69,7 +69,7 @@ void connection_controller(void* ptr) {
 		}
 	}
 	// 添加定时器
-	time_wheel_add_timer(connection, ftp_connection_close, tw.slot_interval * 10);
+	time_wheel_add_timer(connection, ftp_connection_shutdown, tw.slot_interval * 10);
 
 	ftp_epoll_mod(connection->epollfd, connection->fd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 
@@ -87,6 +87,13 @@ void ftp_connection_close(ftp_connection_t* connection) {
 	close(connection->filefd); // 关闭文件描述符,否则文件描述符不够用
 	free(connection);
 	connection = NULL;
+}
+
+void ftp_connection_shutdown(ftp_connection_t* connection) {
+	if (NULL == connection)
+		return ;
+	// 关闭套接字写的一半(将发送缓冲区内的数据发完,收到对端的ACK后,再执行4次挥手过程)
+	shutdown(connection->fd, SHUT_WR); //关闭套接字写的一半,说明对端还可以继续往服务器发送数据
 }
 
 void connection_head_recv_finish(ftp_connection_t* connection) {
