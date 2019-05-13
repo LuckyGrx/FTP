@@ -28,7 +28,7 @@ typedef struct time_wheel {
     int slot_interval;                 // 槽间隔时间
     tw_timer_t* slots[SLOT_NUM];  // 时间轮的槽，其中每个元素指向一个双向定时器链表，链表无序
 
-	pthread_mutex_t mutex;             // 互斥锁
+    pthread_spinlock_t spin_lock;       // 自旋锁
 }time_wheel_t;
 
 volatile time_wheel_t tw;

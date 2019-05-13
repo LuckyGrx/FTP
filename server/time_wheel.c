@@ -7,18 +7,18 @@ int time_wheel_init() {
     for (int i = 0; i < tw.slot_num; ++i)
         tw.slots[i] = NULL;
 
-	pthread_mutex_init(&(tw.mutex), NULL);
+    pthread_spin_init(&(tw.spin_lock), PTHREAD_PROCESS_SHARED);
     return 0;
 }
 
 int time_wheel_destroy() {
     for (int i = 0; i < tw.slot_num; ++i)
         free(tw.slots[i]);
-	pthread_mutex_destroy(&(tw.mutex));
+	pthread_spin_destroy(&(tw.spin_lock));
 }
 
 int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler, int timeout) {
-	pthread_mutex_lock(&(tw.mutex));
+    pthread_spin_lock(&(tw.spin_lock));
 
     int ticks = 0;        // 转动几个槽触发
     int rotation = 0;     // 计算待插入的定时器在时间轮转动多少圈后被触发
@@ -52,14 +52,14 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler,
         tw.slots[slot] = timer;
     }
 
-	pthread_mutex_unlock(&(tw.mutex));
+    pthread_spin_unlock(&(tw.spin_lock));
     return 0;
 }
 
 int time_wheel_del_timer(ftp_connection_t* connection) {
     if (connection == NULL)
         return -1;
-	pthread_mutex_lock(&(tw.mutex));
+    pthread_spin_lock(&(tw.spin_lock));
 
     tw_timer_t* timer = (tw_timer_t*)connection->timer;
 
@@ -77,16 +77,15 @@ int time_wheel_del_timer(ftp_connection_t* connection) {
         connection->timer = NULL; // 修复timer->slot的值会大于9的情况(32515)
     }
 
-	pthread_mutex_unlock(&(tw.mutex));
+    pthread_spin_unlock(&(tw.spin_lock));
 }
 
 int time_wheel_tick() {
-	pthread_mutex_lock(&(tw.mutex));
+    pthread_spin_lock(&(tw.spin_lock));
 
     tw_timer_t* tmp = tw.slots[tw.cur_slot];
 
     while (tmp != NULL) {
-        //printf("time_wheel.cur_slot = %d\n", time_wheel.cur_slot);
         if (tmp->rotation > 0) {
             --(tmp->rotation);
             tmp = tmp->next;
@@ -116,5 +115,5 @@ int time_wheel_tick() {
     }
     tw.cur_slot = (++(tw.cur_slot)) % tw.slot_num;
 
-	pthread_mutex_unlock(&(tw.mutex));
+    pthread_spin_unlock(&(tw.spin_lock));
 }
