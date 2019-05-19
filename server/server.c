@@ -28,18 +28,19 @@ int main (int argc, char* argv[]) {
 	// 初始化线程池
 	ftp_threadpool_t* pool = threadpool_init(conf.threadnum);
 
+	// 
+	signal(SIGALRM, time_wheel_alarm_handler);
 	// 初始化时间轮
 	time_wheel_init();
-	// epoll_wait 超时时间
-	int timeout = tw.slot_interval * 1000 * 10; // 每10秒超时一次
+	// 发送定时信号
+	alarm(DEFAULT_TICK_TIME);
 	for (;;) {
 
 		// 调用epoll_wait函数，返回接收到事件的数量
-        int events_num = ftp_epoll_wait(epollfd, events, MAX_EVENT_NUMBER, &timeout);
+        int events_num = ftp_epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
 
 		// 遍历events数组
         ftp_handle_events(epollfd, listenfd, events, events_num, pool);
-	
 	}
 	
 	// 销毁线程池（平滑停机模式）

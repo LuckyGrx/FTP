@@ -6,6 +6,8 @@
 
 #define SLOT_NUM 10
 
+#define DEFAULT_TICK_TIME 10  // 每隔10秒运行心搏函数
+
 // 函数指针，负责超时处理， add_timer时指定处理函数
 typedef int (*timer_handler_pt)(ftp_connection_t* request);
 
@@ -18,8 +20,6 @@ typedef struct tw_timer {
 
     struct tw_timer* next;            // 指向下一个定时器
     struct tw_timer* prev;            // 指向上一个定时器
-
-    int deleted;                      // 标记是否被删除(惰性删除)
 }tw_timer_t;
 
 typedef struct time_wheel {
@@ -38,6 +38,8 @@ int time_wheel_init();
 int time_wheel_add_timer(ftp_connection_t* connnection, timer_handler_pt handler, int timeout);
 
 int time_wheel_del_timer(ftp_connection_t* connection);
+
+void time_wheel_alarm_handler(int sig);
 
 int time_wheel_destroy();
 

@@ -40,7 +40,6 @@ int time_wheel_add_timer(ftp_connection_t* connection, timer_handler_pt handler,
     timer->connection = connection;
     timer->next = NULL;
     timer->prev = NULL;
-    timer->deleted = 0;
 
     connection->timer = timer; // 之后好进行删除操作
 
@@ -78,6 +77,12 @@ int time_wheel_del_timer(ftp_connection_t* connection) {
     }
 
     pthread_spin_unlock(&(tw.spin_lock));
+}
+
+void time_wheel_alarm_handler(int sig) {
+    time_wheel_tick();
+
+    alarm(DEFAULT_TICK_TIME);
 }
 
 int time_wheel_tick() {
