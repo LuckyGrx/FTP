@@ -52,6 +52,10 @@ int timer_list_add_timer(ftp_connection_t* connection, timer_handler_pt handler,
     timer->expire = time(NULL) + timeout;
     timer->prev = NULL;
     timer->next = NULL;
+    timer->handler = handler;
+    timer->connection = connection;
+
+    connection->timer = timer; // 之后好进行删除操作
 
     if (tl.head == NULL) {
         tl.head = tl.tail = timer;
@@ -109,7 +113,6 @@ int timer_list_del_timer(ftp_connection_t* connection) {
 
 int timer_list_tick() {
     pthread_spin_lock(&(tl.spin_lock));
-    printf("111\n");
 
     time_t cur = time(NULL);    // 获得系统当前的时间
     tl_timer_t* tmp = tl.head;
@@ -119,6 +122,7 @@ int timer_list_tick() {
         // 以判断定时器是否到期
         if (cur < tmp->expire)
             break;
+        
         // 调用定时器的回调函数,以执行定时任务
         tmp->handler(tmp->connection); 
         // 执行完定时器中的定时任务之后,就将它从链表中删除,并重置链表头节点

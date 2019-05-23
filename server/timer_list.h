@@ -6,7 +6,7 @@
 #define DEFAULT_TICK_TIME 10  // 每隔10秒运行心搏函数
 
 // 函数指针，负责超时处理， add_timer时指定处理函数
-typedef int (*timer_handler_pt)(ftp_connection_t* request);
+typedef int (*timer_handler_pt)(ftp_connection_t* connection);
 
 typedef struct tl_timer {
     time_t          expire;             // 任务的超时时间,使用绝对时间
