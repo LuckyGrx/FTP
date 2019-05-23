@@ -1,5 +1,5 @@
-#ifndef __FTP_REQUEST_H__
-#define __FTP_REQUEST_H__
+#ifndef __FTP_CONNECTION_H__
+#define __FTP_CONNECTION_H__
 
 #include "head.h"
 #include "util.h"

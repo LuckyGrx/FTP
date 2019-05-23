@@ -2,7 +2,7 @@
 #include "util.h"
 #include "epoll.h"
 #include "ftp_connection.h"
-#include "time_wheel.h"
+#include "timer_list.h"
 
 int tcp_socket_bind_listen(int port) {
 	int listenfd;
@@ -55,7 +55,7 @@ void tcp_accept(int epollfd, int listenfd) {
 		ftp_connection_t* connection = (ftp_connection_t*)calloc(1, sizeof(ftp_connection_t));
 		init_connection_t(connection, connfd, epollfd);
 
-		time_wheel_add_timer(connection, ftp_connection_shutdown, tw.slot_interval * 20);
+		timer_list_add_timer(connection, ftp_connection_shutdown, DEFAULT_TICK_TIME);
 		// 文件描述符可以读，边缘触发(Edge Triggered)模式，保证一个socket连接在任一时刻只被一个线程处理
 		ftp_epoll_add(epollfd, connfd, connection, EPOLLIN | EPOLLET | EPOLLONESHOT); 
 

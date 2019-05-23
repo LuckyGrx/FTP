@@ -20,5 +20,4 @@
 #include <errno.h>
 #include <sys/mman.h>
 
-
 #endif
